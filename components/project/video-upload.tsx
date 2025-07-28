@@ -2,12 +2,14 @@
 
 import type React from "react"
 
-import { useState, useRef } from "react"
+import { useState, useRef, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
 import { Badge } from "@/components/ui/badge"
 import { Upload, File, X, CheckCircle, AlertCircle } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { useToast } from "@/components/ui/use-toast"
 
 interface UploadedFile {
   id: string
@@ -21,12 +23,43 @@ interface UploadedFile {
 interface VideoUploadProps {
   onVideoUploaded?: (videoData: any) => void
   projectId?: string
+  projectName?: string
 }
 
-export function VideoUpload({ onVideoUploaded, projectId }: VideoUploadProps) {
+export function VideoUpload({ onVideoUploaded, projectId, projectName: initialProjectName }: VideoUploadProps) {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
+  const [projectName, setProjectName] = useState<string | undefined>(initialProjectName)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const { toast } = useToast()
+  
+  // Fetch project name if not provided and projectId exists
+  useEffect(() => {
+    if (projectId && !projectName) {
+      const fetchProjectName = async () => {
+        try {
+          const { data, error } = await supabase
+            .from('projects')
+            .select('name')
+            .eq('id', projectId)
+            .single()
+            
+          if (error) {
+            console.error('Error fetching project name:', error)
+            return
+          }
+          
+          if (data?.name) {
+            setProjectName(data.name)
+          }
+        } catch (error) {
+          console.error('Error fetching project name:', error)
+        }
+      }
+      
+      fetchProjectName()
+    }
+  }, [projectId, projectName])
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -53,6 +86,26 @@ export function VideoUpload({ onVideoUploaded, projectId }: VideoUploadProps) {
 
   const handleFiles = (files: File[]) => {
     const videoFiles = files.filter((file) => file.type.startsWith("video/"))
+    
+    if (videoFiles.length === 0) {
+      toast({
+        title: 'Invalid file type',
+        description: 'Please select video files only (MP4, MOV, AVI, etc.)',
+        variant: 'destructive'
+      })
+      return
+    }
+    
+    // Check file size limit (500MB)
+    const oversizedFiles = videoFiles.filter(file => file.size > 500 * 1024 * 1024)
+    if (oversizedFiles.length > 0) {
+      toast({
+        title: 'File too large',
+        description: 'Video files must be under 500MB in size.',
+        variant: 'destructive'
+      })
+      return
+    }
 
     videoFiles.forEach((file) => {
       const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
@@ -66,39 +119,111 @@ export function VideoUpload({ onVideoUploaded, projectId }: VideoUploadProps) {
 
       setUploadedFiles((prev) => [...prev, newFile])
 
-      // Simulate upload progress
-      simulateUpload(fileId, file)
+      // Upload to Supabase
+      uploadToSupabase(fileId, file)
     })
   }
 
-  const simulateUpload = async (fileId: string, file: File) => {
-    // Simulate upload progress
-    for (let progress = 0; progress <= 100; progress += 10) {
-      await new Promise((resolve) => setTimeout(resolve, 200))
-
-      setUploadedFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, progress } : f)))
+  const uploadToSupabase = async (fileId: string, file: File) => {
+    try {
+      // Check if videos bucket exists, if not create it
+      const { data: buckets } = await supabase.storage.listBuckets()
+      const videosBucketExists = buckets?.some(bucket => bucket.name === 'videos')
+      
+      if (!videosBucketExists) {
+        await supabase.storage.createBucket('videos', {
+          public: true,
+          fileSizeLimit: 500000000 // 500MB
+        })
+      }
+      
+      // Generate a unique file name to prevent overwriting
+      const fileExt = file.name.split('.').pop()
+      const fileName = `${projectId || 'general'}/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`
+      
+      // Simulate progress while uploading
+      const simulateProgress = async () => {
+        for (let progress = 10; progress < 90; progress += 10) {
+          await new Promise(resolve => setTimeout(resolve, file.size / 1000000 * 50)); // Adjust based on file size
+          setUploadedFiles(prev => 
+            prev.map(f => f.id === fileId ? { ...f, progress } : f)
+          );
+        }
+      };
+      
+      // Start progress simulation
+      const progressSimulation = simulateProgress();
+      
+      // Upload file
+      const { data, error } = await supabase.storage
+        .from('videos')
+        .upload(fileName, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      // Set progress to 95% after upload completes
+      setUploadedFiles(prev => 
+        prev.map(f => f.id === fileId ? { ...f, progress: 95 } : f)
+      );
+        
+      if (error) {
+        throw error
+      }
+      
+      // Get public URL
+      const { data: publicUrl } = supabase.storage
+        .from('videos')
+        .getPublicUrl(fileName)
+      
+      // Mark as completed
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? {
+                ...f,
+                status: "completed",
+                url: publicUrl.publicUrl,
+              }
+            : f,
+        ),
+      )
+      
+      // Call the callback
+      onVideoUploaded?.({
+        id: fileId,
+        name: file.name,
+        size: file.size,
+        url: publicUrl.publicUrl,
+        path: fileName
+      })
+      
+      toast({
+        title: 'Upload successful',
+        description: `${file.name} has been uploaded to the videos bucket.`,
+      })
+      
+    } catch (error: any) {
+      console.error('Error uploading to Supabase:', error)
+      
+      // Mark as error
+      setUploadedFiles((prev) =>
+        prev.map((f) =>
+          f.id === fileId
+            ? {
+                ...f,
+                status: "error",
+              }
+            : f,
+        ),
+      )
+      
+      toast({
+        title: 'Upload failed',
+        description: error.message || 'There was a problem uploading your video.',
+        variant: 'destructive'
+      })
     }
-
-    // Mark as completed
-    setUploadedFiles((prev) =>
-      prev.map((f) =>
-        f.id === fileId
-          ? {
-              ...f,
-              status: "completed",
-              url: URL.createObjectURL(file),
-            }
-          : f,
-      ),
-    )
-
-    // Call the callback
-    onVideoUploaded?.({
-      id: fileId,
-      name: file.name,
-      size: file.size,
-      url: URL.createObjectURL(file),
-    })
   }
 
   const removeFile = (fileId: string) => {
@@ -127,6 +252,13 @@ export function VideoUpload({ onVideoUploaded, projectId }: VideoUploadProps) {
           <Upload className="w-8 h-8 text-gray-400 mx-auto mb-4" />
           <p className="text-sm text-gray-600 mb-2">Drag and drop your video files here</p>
           <p className="text-xs text-gray-500 mb-4">Supports MP4, MOV, AVI up to 500MB</p>
+          {projectId ? (
+            <p className="text-xs text-blue-500 mb-2">
+              Files will be uploaded to project: {projectName || 'Loading project name...'}
+            </p>
+          ) : (
+            <p className="text-xs text-amber-500 mb-2">No project ID provided, files will be uploaded to general folder</p>
+          )}
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
             Browse Files
           </Button>

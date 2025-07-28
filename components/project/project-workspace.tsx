@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -26,18 +26,64 @@ import Link from "next/link"
 import { AIAgentCard, contentAgents } from "./ai-agent-card"
 import { WorkflowCanvas } from "./workflow-canvas"
 import { VideoUpload } from "./video-upload"
+import { supabase } from "@/lib/supabase"
 
 interface ProjectWorkspaceProps {
   projectId: string
+  projectName?: string
 }
 
-export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
+export function ProjectWorkspace({ projectId, projectName: initialProjectName }: ProjectWorkspaceProps) {
   const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
   const [isFullscreen, setIsFullscreen] = useState(false)
   const [zoom, setZoom] = useState(100)
   const [miniMapEnabled, setMiniMapEnabled] = useState(true)
   const [gridEnabled, setGridEnabled] = useState(true)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [projectName, setProjectName] = useState<string>(initialProjectName || '')
+  
+  // Fetch project name only if not provided
+  useEffect(() => {
+    if (initialProjectName) return;
+    
+    const fetchProjectName = async () => {
+      try {
+        // First ensure we have a valid session
+        const { data: sessionData } = await supabase.auth.getSession()
+        if (!sessionData.session) {
+          console.log('No active session found in ProjectWorkspace, skipping project fetch')
+          return
+        }
+
+        // Then fetch the project data
+        const { data, error } = await supabase
+          .from('projects')
+          .select('title')
+          .eq('id', projectId)
+          .single()
+          
+        if (error) {
+          console.error('Error fetching project name in ProjectWorkspace:', error)
+          return
+        }
+        
+        if (data?.title) {
+          setProjectName(data.title)
+        } else {
+          console.log('Project found but no name available in ProjectWorkspace')
+          // Set a fallback name to avoid showing just the ID
+          setProjectName('My Project')
+        }
+      } catch (error) {
+        console.error('Error in ProjectWorkspace project name fetch:', error)
+        // Set a fallback name in case of error
+        setProjectName('My Project')
+      }
+    }
+    
+    fetchProjectName()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId])
 
   const handleZoomIn = () => setZoom((prev) => Math.min(prev + 25, 200))
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 25, 25))
@@ -92,7 +138,11 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
           <TabsContent value="upload" className="flex-1 mt-4">
             <ScrollArea className="h-full px-4">
               <div className="pb-4">
-                <VideoUpload onVideoUploaded={handleVideoUploaded} projectId={projectId} />
+                <VideoUpload 
+                  onVideoUploaded={handleVideoUploaded} 
+                  projectId={projectId} 
+                  projectName={projectName} 
+                />
               </div>
             </ScrollArea>
           </TabsContent>
@@ -105,7 +155,9 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
         <div className="bg-white border-b border-gray-200 p-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-semibold text-gray-900">Project {projectId}</h1>
+              <h1 className="text-xl font-semibold text-gray-900">
+                {projectName ? projectName : `Project ${projectId}`}
+              </h1>
               <Badge variant="secondary">Draft</Badge>
             </div>
 
@@ -188,7 +240,7 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
 
         {/* Canvas */}
         <div className="flex-1 relative overflow-hidden">
-          <WorkflowCanvas zoom={zoom} miniMapEnabled={miniMapEnabled} />
+          <WorkflowCanvas projectId={projectId} zoom={zoom} miniMapEnabled={miniMapEnabled} />
 
           {/* Grid Overlay */}
           {gridEnabled && (

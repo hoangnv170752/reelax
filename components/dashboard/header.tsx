@@ -43,7 +43,7 @@ export function DashboardHeader() {
             <p className="text-gray-500 mt-1">Reelax and let AI create amazing content for you</p>
           </div>
           <Button 
-            className="bg-blue-600 hover:bg-blue-700" 
+            className="bg-purple-600 hover:bg-blue-700" 
             onClick={() => {
               if (!isSettingsOrLogoutClicked) {
                 setShowNewProject(true);

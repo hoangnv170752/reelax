@@ -96,7 +96,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
           {!isCollapsed && (
             <div className="mb-6">
-              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 mb-2">Connect</h3>
+              <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider px-2 mb-2">Connect to Platform</h3>
               <a
                 href="#"
                 className="nav-item flex items-center text-gray-600 hover:text-gray-900 p-2 rounded-md hover:bg-gray-50"
