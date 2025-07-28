@@ -7,10 +7,10 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"] })
 
 export const metadata: Metadata = {
-  title: "KIRO CREATE - Create Viral Videos",
+  title: "Reelax - Relax and Let AI Make You a Great Content Creator",
   description:
-    "Generate compelling titles, descriptions, stunning thumbnails, and viral social media content for YouTube and TikTok.",
-    generator: 'v0.dev'
+    "Generate compelling titles, descriptions, stunning thumbnails, and viral social media content for YouTube and TikTok with AI-powered tools.",
+  generator: "v0.dev",
 }
 
 export default function RootLayout({

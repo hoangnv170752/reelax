@@ -1,312 +1,220 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { Switch } from "@/components/ui/switch"
-import { Separator } from "@/components/ui/separator"
-import {
-  ArrowLeft,
-  Share2,
-  Hash,
-  FileText,
-  ImageIcon,
-  Zap,
-  Sparkles,
-  Eye,
-  Mic,
-  Target,
-  TrendingUp,
-  MessageSquare,
-  Calendar,
-  BarChart3,
-  Brain,
-  Wand2,
-} from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { ZoomIn, ZoomOut, RotateCcw, ArrowLeft, Settings, Play, Save } from "lucide-react"
 import Link from "next/link"
-import { gsap } from "gsap"
-import { VideoUpload } from "./video-upload"
 import { AIAgentCard } from "./ai-agent-card"
+import { VideoUpload } from "./video-upload"
 import { WorkflowCanvas } from "./workflow-canvas"
+import { contentAgents } from "./ai-agent-card"
 
 interface ProjectWorkspaceProps {
   projectId: string
 }
 
 export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
-  const [miniMapEnabled, setMiniMapEnabled] = useState(true)
-  const [selectedAgent, setSelectedAgent] = useState<string | null>(null)
+  const [zoomLevel, setZoomLevel] = useState(100)
+  const [canvasNodes, setCanvasNodes] = useState<any[]>([])
   const workspaceRef = useRef<HTMLDivElement>(null)
 
-  const contentAgents = [
-    {
-      id: "title-generator",
-      title: "Title Generator",
-      description: "Create engaging video titles",
-      icon: Hash,
-      color: "bg-blue-100 border-blue-200",
-      iconColor: "text-blue-600",
-      category: "content",
-    },
-    {
-      id: "description-writer",
-      title: "Description Writer",
-      description: "Write SEO-optimized descriptions",
-      icon: FileText,
-      color: "bg-green-100 border-green-200",
-      iconColor: "text-green-600",
-      category: "content",
-    },
-    {
-      id: "thumbnail-designer",
-      title: "Thumbnail Designer",
-      description: "Design eye-catching thumbnails",
-      icon: ImageIcon,
-      color: "bg-purple-100 border-purple-200",
-      iconColor: "text-purple-600",
-      category: "content",
-    },
-    {
-      id: "social-media",
-      title: "Social Media",
-      description: "Create viral tweets & posts",
-      icon: Zap,
-      color: "bg-yellow-100 border-yellow-200",
-      iconColor: "text-yellow-600",
-      category: "content",
-    },
-    {
-      id: "hashtag-generator",
-      title: "Hashtag Generator",
-      description: "Generate trending hashtags",
-      icon: Hash,
-      color: "bg-pink-100 border-pink-200",
-      iconColor: "text-pink-600",
-      category: "content",
-    },
-    {
-      id: "script-writer",
-      title: "Script Writer",
-      description: "Write engaging video scripts",
-      icon: FileText,
-      color: "bg-indigo-100 border-indigo-200",
-      iconColor: "text-indigo-600",
-      category: "content",
-    },
-    {
-      id: "qloo-quality",
-      title: "Qloo Quality Judge",
-      description: "Judge quality & enhance cultural parts",
-      icon: Brain,
-      color: "bg-amber-100 border-amber-200",
-      iconColor: "text-amber-600",
-      category: "content",
-    },
-    {
-      id: "openai-generator",
-      title: "OpenAI Generator",
-      description: "Generate text & image content",
-      icon: Wand2,
-      color: "bg-emerald-100 border-emerald-200",
-      iconColor: "text-emerald-600",
-      category: "content",
-    },
-  ]
-
-  const analysisAgents = [
-    {
-      id: "trend-analyzer",
-      title: "Trend Analyzer",
-      description: "Analyze current trends",
-      icon: TrendingUp,
-      color: "bg-orange-100 border-orange-200",
-      iconColor: "text-orange-600",
-      category: "analysis",
-    },
-    {
-      id: "audience-insights",
-      title: "Audience Insights",
-      description: "Understand your audience",
-      icon: Target,
-      color: "bg-cyan-100 border-cyan-200",
-      iconColor: "text-cyan-600",
-      category: "analysis",
-    },
-    {
-      id: "sentiment-analyzer",
-      title: "Sentiment Analyzer",
-      description: "Analyze content sentiment",
-      icon: MessageSquare,
-      color: "bg-teal-100 border-teal-200",
-      iconColor: "text-teal-600",
-      category: "analysis",
-    },
-    {
-      id: "performance-tracker",
-      title: "Performance Tracker",
-      description: "Track content performance",
-      icon: BarChart3,
-      color: "bg-emerald-100 border-emerald-200",
-      iconColor: "text-emerald-600",
-      category: "analysis",
-    },
-  ]
-
-  const automationAgents = [
-    {
-      id: "auto-scheduler",
-      title: "Auto Scheduler",
-      description: "Schedule content posting",
-      icon: Calendar,
-      color: "bg-violet-100 border-violet-200",
-      iconColor: "text-violet-600",
-      category: "automation",
-    },
-    {
-      id: "voice-over",
-      title: "Voice Over",
-      description: "Generate AI voice narration",
-      icon: Mic,
-      color: "bg-rose-100 border-rose-200",
-      iconColor: "text-rose-600",
-      category: "automation",
-    },
-  ]
-
-  const allAgents = [...contentAgents, ...analysisAgents, ...automationAgents]
-
+  // Prevent scrolling and enable zoom-only functionality
   useEffect(() => {
-    // Animate workspace entrance
-    gsap.from(workspaceRef.current, {
-      opacity: 0,
-      y: 20,
-      duration: 0.6,
-      ease: "power2.out",
-    })
+    const handleWheel = (e: WheelEvent) => {
+      if (e.ctrlKey || e.metaKey) {
+        e.preventDefault()
+        const delta = e.deltaY > 0 ? -10 : 10
+        setZoomLevel((prev) => Math.max(50, Math.min(200, prev + delta)))
+      } else {
+        e.preventDefault() // Prevent normal scrolling
+      }
+    }
 
-    // Animate agent cards
-    gsap.from(".agent-card", {
-      x: -50,
-      opacity: 0,
-      duration: 0.5,
-      stagger: 0.1,
-      delay: 0.3,
-      ease: "power2.out",
-    })
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Prevent arrow keys, page up/down, home/end
+      if (["ArrowUp", "ArrowDown", "PageUp", "PageDown", "Home", "End"].includes(e.key)) {
+        e.preventDefault()
+      }
+
+      // Handle zoom shortcuts
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === "0") {
+          e.preventDefault()
+          setZoomLevel(100)
+        } else if (e.key === "=" || e.key === "+") {
+          e.preventDefault()
+          setZoomLevel((prev) => Math.min(200, prev + 10))
+        } else if (e.key === "-") {
+          e.preventDefault()
+          setZoomLevel((prev) => Math.max(50, prev - 10))
+        }
+      }
+    }
+
+    // Apply styles to prevent scrolling
+    document.body.style.overflow = "hidden"
+    document.documentElement.style.overflow = "hidden"
+
+    document.addEventListener("wheel", handleWheel, { passive: false })
+    document.addEventListener("keydown", handleKeyDown)
+
+    return () => {
+      document.body.style.overflow = "auto"
+      document.documentElement.style.overflow = "auto"
+      document.removeEventListener("wheel", handleWheel)
+      document.removeEventListener("keydown", handleKeyDown)
+    }
   }, [])
 
+  const handleZoomIn = () => {
+    setZoomLevel((prev) => Math.min(200, prev + 10))
+  }
+
+  const handleZoomOut = () => {
+    setZoomLevel((prev) => Math.max(50, prev - 10))
+  }
+
+  const handleZoomReset = () => {
+    setZoomLevel(100)
+  }
+
+  const handleAgentDrop = (agent: any, position: { x: number; y: number }) => {
+    const newNode = {
+      id: `${agent.id}-${Date.now()}`,
+      agent,
+      position,
+      status: "idle" as const,
+      output: null,
+    }
+    setCanvasNodes((prev) => [...prev, newNode])
+  }
+
+  const handleNodeRemove = (nodeId: string) => {
+    setCanvasNodes((prev) => prev.filter((node) => node.id !== nodeId))
+  }
+
+  const handleNodeProcess = (nodeId: string) => {
+    setCanvasNodes((prev) =>
+      prev.map((node) => (node.id === nodeId ? { ...node, status: "processing" as const } : node)),
+    )
+
+    // Simulate processing
+    setTimeout(() => {
+      setCanvasNodes((prev) =>
+        prev.map((node) =>
+          node.id === nodeId
+            ? {
+                ...node,
+                status: "completed" as const,
+                output: `Generated content from ${node.agent.name}`,
+              }
+            : node,
+        ),
+      )
+    }, 2000)
+  }
+
   return (
-    <div ref={workspaceRef} className="h-screen bg-gray-50 flex">
+    <div ref={workspaceRef} className="h-screen max-h-screen flex bg-gray-50 overflow-hidden">
       {/* Sidebar */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-80 bg-white border-r border-gray-200 flex flex-col overflow-hidden">
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
-          <div className="flex items-center space-x-3 mb-4">
+          <div className="flex items-center justify-between mb-4">
             <Button variant="ghost" size="sm" asChild>
               <Link href="/dashboard">
-                <ArrowLeft className="w-4 h-4" />
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Back to Dashboard
               </Link>
             </Button>
-            <div>
-              <h1 className="text-lg font-semibold">AI Agents</h1>
-              <p className="text-sm text-gray-500">Drag to canvas</p>
-            </div>
+            <Button variant="ghost" size="sm">
+              <Settings className="w-4 h-4" />
+            </Button>
+          </div>
+          <div>
+            <h1 className="text-lg font-semibold">Project Workspace</h1>
+            <p className="text-sm text-gray-500">Relax while AI creates your content</p>
           </div>
         </div>
 
-        {/* Agents */}
-        <div className="flex-1 overflow-y-auto p-4">
-          {/* Content Agents */}
-          <div className="mb-6">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Content Agents</h3>
+        {/* Video Upload */}
+        <div className="p-4 border-b border-gray-200">
+          <VideoUpload onVideoUpload={(file) => console.log("Video uploaded:", file)} />
+        </div>
+
+        {/* AI Agents */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-4">
+            <h2 className="text-sm font-medium text-gray-900 mb-4">AI Content Agents</h2>
             <div className="space-y-3">
               {contentAgents.map((agent) => (
                 <AIAgentCard
                   key={agent.id}
                   agent={agent}
-                  isSelected={selectedAgent === agent.id}
-                  onClick={() => setSelectedAgent(agent.id)}
+                  onDragStart={(agent) => console.log("Drag started:", agent)}
                 />
               ))}
             </div>
-          </div>
-
-          <Separator className="my-6" />
-
-          {/* Analysis Agents */}
-          <div className="mb-6">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Analysis Agents</h3>
-            <div className="space-y-3">
-              {analysisAgents.map((agent) => (
-                <AIAgentCard
-                  key={agent.id}
-                  agent={agent}
-                  isSelected={selectedAgent === agent.id}
-                  onClick={() => setSelectedAgent(agent.id)}
-                />
-              ))}
-            </div>
-          </div>
-
-          <Separator className="my-6" />
-
-          {/* Automation Agents */}
-          <div className="mb-6">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Automation Agents</h3>
-            <div className="space-y-3">
-              {automationAgents.map((agent) => (
-                <AIAgentCard
-                  key={agent.id}
-                  agent={agent}
-                  isSelected={selectedAgent === agent.id}
-                  onClick={() => setSelectedAgent(agent.id)}
-                />
-              ))}
-            </div>
-          </div>
-
-          <Separator className="my-6" />
-
-          {/* Transcription Tools */}
-          <div className="mb-6">
-            <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Video Upload</h3>
-            <VideoUpload />
-          </div>
-
-          {/* Action Buttons */}
-          <div className="space-y-3">
-            <Button className="w-full bg-blue-600 hover:bg-blue-700">
-              <Sparkles className="w-4 h-4 mr-2" />
-              Generate All Content
-            </Button>
-            <Button variant="outline" className="w-full bg-transparent">
-              <Eye className="w-4 h-4 mr-2" />
-              Preview Content
-            </Button>
           </div>
         </div>
 
-        {/* Canvas Settings */}
-        <div className="p-4 border-t border-gray-200">
-          <h3 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-3">Canvas Settings</h3>
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-sm">Mini-map</span>
-            <Switch checked={miniMapEnabled} onCheckedChange={setMiniMapEnabled} />
-          </div>
-          <Button variant="outline" size="sm" className="w-full bg-transparent">
-            <Share2 className="w-4 h-4 mr-2" />
-            Share Canvas
+        {/* Action Buttons */}
+        <div className="p-4 border-t border-gray-200 space-y-2">
+          <Button className="w-full bg-purple-600 hover:bg-purple-700">
+            <Play className="w-4 h-4 mr-2" />
+            Generate All Content
+          </Button>
+          <Button variant="outline" className="w-full bg-transparent">
+            <Save className="w-4 h-4 mr-2" />
+            Save Project
           </Button>
         </div>
       </div>
 
-      {/* Main Canvas */}
-      <div className="flex-1 relative">
-        <WorkflowCanvas
-          agents={allAgents}
-          selectedAgent={selectedAgent}
-          miniMapEnabled={miniMapEnabled}
-          projectId={projectId}
-        />
+      {/* Main Canvas Area */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+        {/* Toolbar */}
+        <div className="bg-white border-b border-gray-200 p-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <h2 className="text-lg font-semibold">AI Workflow Canvas</h2>
+              <Badge variant="secondary">Reelax Mode</Badge>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="outline" size="sm" onClick={handleZoomOut} disabled={zoomLevel <= 50}>
+                <ZoomOut className="w-4 h-4" />
+              </Button>
+              <span className="text-sm text-gray-600 min-w-[60px] text-center">{zoomLevel}%</span>
+              <Button variant="outline" size="sm" onClick={handleZoomIn} disabled={zoomLevel >= 200}>
+                <ZoomIn className="w-4 h-4" />
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleZoomReset}>
+                <RotateCcw className="w-4 h-4" />
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Canvas */}
+        <div className="flex-1 overflow-hidden relative">
+          <div
+            className="w-full h-full origin-top-left transition-transform duration-200"
+            style={{
+              transform: `scale(${zoomLevel / 100})`,
+              width: `${10000 / (zoomLevel / 100)}px`,
+              height: `${10000 / (zoomLevel / 100)}px`,
+            }}
+          >
+            <WorkflowCanvas
+              nodes={canvasNodes}
+              onAgentDrop={handleAgentDrop}
+              onNodeRemove={handleNodeRemove}
+              onNodeProcess={handleNodeProcess}
+              zoomLevel={zoomLevel}
+            />
+          </div>
+        </div>
       </div>
     </div>
   )

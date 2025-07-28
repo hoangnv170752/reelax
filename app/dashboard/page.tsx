@@ -101,17 +101,21 @@ function DashboardContent() {
   return (
     <div className="flex h-screen bg-gray-50">
       {/* Sidebar */}
-      <div ref={sidebarRef}>
+      <div ref={sidebarRef} className="flex-shrink-0">
         <Sidebar isCollapsed={isSidebarCollapsed} onToggle={toggleSidebar} />
       </div>
 
       {/* Main Content */}
-      <main ref={mainRef} className="flex-1 overflow-auto">
-        <DashboardHeader />
+      <main ref={mainRef} className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        <div className="flex-shrink-0">
+          <DashboardHeader />
+        </div>
 
-        <div className="p-6">
-          <StatsCards />
-          <ProjectsGrid />
+        <div className="flex-1 overflow-auto">
+          <div className="p-6 space-y-6">
+            <StatsCards />
+            <ProjectsGrid />
+          </div>
         </div>
       </main>
     </div>

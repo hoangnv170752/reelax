@@ -29,21 +29,21 @@ export function AIAgentCard({ agent, isSelected, onClick }: AIAgentCardProps) {
 
   return (
     <Card
-      className={`agent-card cursor-grab active:cursor-grabbing transition-all duration-200 hover:shadow-md ${agent.color} ${
+      className={`cursor-pointer transition-all duration-200 hover:shadow-md ${
         isSelected ? "ring-2 ring-blue-500 shadow-md" : ""
-      }`}
+      } ${agent.color}`}
       onClick={onClick}
       draggable
       onDragStart={handleDragStart}
     >
-      <CardContent className="p-4">
+      <CardContent className="p-3">
         <div className="flex items-start space-x-3">
-          <div className={`p-2 rounded-lg bg-white flex-shrink-0`}>
-            <agent.icon className={`w-5 h-5 ${agent.iconColor}`} />
+          <div className={`p-2 rounded-lg ${agent.color}`}>
+            <agent.icon className={`w-4 h-4 ${agent.iconColor}`} />
           </div>
           <div className="flex-1 min-w-0">
-            <h4 className="font-medium text-gray-900 mb-1">{agent.title}</h4>
-            <p className="text-sm text-gray-600">{agent.description}</p>
+            <h4 className="text-sm font-medium text-gray-900 truncate">{agent.title}</h4>
+            <p className="text-xs text-gray-600 mt-1 line-clamp-2">{agent.description}</p>
           </div>
         </div>
       </CardContent>
