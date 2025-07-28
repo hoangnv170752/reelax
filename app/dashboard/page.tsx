@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { StatsCards } from "@/components/dashboard/stats-cards"
 import { ProjectsGrid } from "@/components/dashboard/projects-grid"
+import { ProjectProvider } from "@/components/dashboard/project-context"
 
 function DashboardContent() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false)
@@ -126,7 +127,9 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <GSAPProvider>
+      <ProjectProvider>
         <DashboardContent />
+      </ProjectProvider>
     </GSAPProvider>
   )
 }

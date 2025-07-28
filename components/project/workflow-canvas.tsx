@@ -4,7 +4,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MessageCircle, Sparkles, Play, Settings, X, Brain, Wand2 } from "lucide-react"
+import { MessageCircle, Sparkles, Play, Settings, X, Brain, Wand2, FileText, ImageIcon, Hash, TrendingUp } from "lucide-react"
 import { gsap } from "gsap"
 import type { LucideIcon } from "lucide-react"
 
@@ -16,6 +16,24 @@ const initializeGSAP = async () => {
     return Draggable
   }
   return null
+}
+
+// Icon mapping function to resolve icon components by name
+const getIconComponent = (iconName: string): LucideIcon => {
+  const iconMap: Record<string, LucideIcon> = {
+    Brain: Brain,
+    Wand2: Wand2,
+    FileText: FileText,
+    ImageIcon: ImageIcon,
+    Hash: Hash,
+    TrendingUp: TrendingUp,
+    MessageCircle: MessageCircle,
+    Sparkles: Sparkles,
+    Play: Play,
+    Settings: Settings,
+  }
+  
+  return iconMap[iconName] || Brain // Default to Brain if icon not found
 }
 
 interface Agent {
@@ -47,13 +65,7 @@ interface WorkflowCanvasProps {
 export function WorkflowCanvas({ zoom = 100, miniMapEnabled = true }: WorkflowCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>([
-    {
-      id: "video-source",
-      type: "source",
-      title: "Video Source",
-      position: { x: 100, y: 200 },
-      status: "ready",
-    },
+
   ])
 
   const [draggedNode, setDraggedNode] = useState<string | null>(null)
@@ -138,6 +150,14 @@ export function WorkflowCanvas({ zoom = 100, miniMapEnabled = true }: WorkflowCa
       if (rect) {
         const x = e.clientX - rect.left - 128 // Center the node
         const y = e.clientY - rect.top - 100
+        
+        // Store the icon name as a string if it exists
+        if (agentData.icon && typeof agentData.icon === 'object') {
+          // Extract the name of the icon component from its display name or constructor name
+          const iconName = agentData.icon.displayName || 
+                          (agentData.icon.name ? agentData.icon.name : 'Brain')
+          agentData.icon = iconName
+        }
 
         const newNode: WorkflowNode = {
           id: `${agentData.id}-${Date.now()}`,
@@ -285,10 +305,15 @@ export function WorkflowCanvas({ zoom = 100, miniMapEnabled = true }: WorkflowCa
               <CardHeader className="pb-3 cursor-grab active:cursor-grabbing">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    {node.agent &&
-                      React.createElement(node.agent.icon, {
-                        className: `w-4 h-4 ${node.agent.iconColor}`,
-                      })}
+                    {node.agent && node.agent.icon && (
+                      typeof node.agent.icon === 'string' ? 
+                        React.createElement(getIconComponent(node.agent.icon), {
+                          className: `w-4 h-4 ${node.agent.iconColor}`,
+                        }) :
+                        React.createElement(node.agent.icon, {
+                          className: `w-4 h-4 ${node.agent.iconColor}`,
+                        })
+                    )}
                     <CardTitle className="text-sm font-medium pointer-events-none">{node.title}</CardTitle>
                   </div>
                   <div className="flex items-center space-x-1">

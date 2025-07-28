@@ -11,6 +11,10 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Badge } from "@/components/ui/badge"
 import { X, Youtube, Music, Instagram, Twitter } from "lucide-react"
+import { supabase } from "@/lib/supabase"
+import { useToast } from "@/components/ui/use-toast"
+import { useAuth } from "@/components/auth/supabase-auth-provider"
+import { useProjectContext } from "./project-context"
 
 interface NewProjectModalProps {
   open: boolean
@@ -53,6 +57,9 @@ export function NewProjectModal({ open, onOpenChange }: NewProjectModalProps) {
   })
   const [newTag, setNewTag] = useState("")
   const [isCreating, setIsCreating] = useState(false)
+  const { toast } = useToast()
+  const { user } = useAuth() // Get the current authenticated user
+  const { refreshProjects } = useProjectContext() // Get the refresh function from context
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -60,16 +67,109 @@ export function NewProjectModal({ open, onOpenChange }: NewProjectModalProps) {
 
     setIsCreating(true)
 
-    // Simulate project creation
-    await new Promise((resolve) => setTimeout(resolve, 1500))
+    try {
+      const { data: existingProjects, error: countError } = await supabase
+        .from('projects')
+        .select('id')
+      
+      if (countError) {
+        throw countError
+      }
+      
+      if (existingProjects && existingProjects.length >= 3) {
+        toast({
+          title: "Project limit reached",
+          description: "You can have a maximum of 3 projects. Please delete an existing project to create a new one.",
+          variant: "destructive",
+        })
+        setIsCreating(false)
+        return
+      }
 
-    console.log("Creating project:", formData)
+      // Check if user is authenticated
+      if (!user || !user.id) {
+        throw new Error('User not authenticated')
+      }
+      
+      // Create new project in Supabase
+      const newProject = {
+        title: formData.name,
+        description: formData.description,
+        platform: formData.platform,
+        status: "Draft",
+        views_count: 0,
+        user_id: user.id, // Add the user_id field which is required
+      }
 
-    // Reset form
-    setFormData({ name: "", description: "", platform: "", tags: [] })
-    setNewTag("")
-    setIsCreating(false)
-    onOpenChange(false)
+      const { data, error } = await supabase
+        .from('projects')
+        .insert(newProject)
+        .select()
+
+      if (error) {
+        throw error
+      }
+
+      // If project was created successfully and has tags, add them
+      if (data && data[0] && formData.tags.length > 0) {
+        // First, ensure all tags exist in the project_tags table
+        for (const tagName of formData.tags) {
+          // Check if tag exists
+          const { data: existingTag } = await supabase
+            .from('project_tags')
+            .select('id')
+            .eq('name', tagName)
+            .single()
+          
+          let tagId
+          
+          if (!existingTag) {
+            // Create tag if it doesn't exist
+            const { data: newTag } = await supabase
+              .from('project_tags')
+              .insert({ name: tagName })
+              .select('id')
+              .single()
+            
+            if (newTag) tagId = newTag.id
+          } else {
+            tagId = existingTag.id
+          }
+          
+          // If we have a tag ID, create the relation
+          if (tagId) {
+            await supabase
+              .from('project_tag_relations')
+              .insert({
+                project_id: data[0].id,
+                tag_id: tagId
+              })
+          }
+        }
+      }
+
+      toast({
+        title: "Project created",
+        description: "Your new project has been created successfully",
+      })
+
+      // Refresh the projects grid
+      refreshProjects()
+
+      // Reset form
+      setFormData({ name: "", description: "", platform: "", tags: [] })
+      setNewTag("")
+      onOpenChange(false)
+    } catch (error) {
+      console.error('Error creating project:', error)
+      toast({
+        title: "Error creating project",
+        description: "Please try again later",
+        variant: "destructive",
+      })
+    } finally {
+      setIsCreating(false)
+    }
   }
 
   const addTag = (tag: string) => {

@@ -6,7 +6,7 @@ import { Clock, Youtube, Music } from "lucide-react"
 import Link from "next/link"
 
 interface Project {
-  id: number
+  id: string
   title: string
   description: string
   platform: string

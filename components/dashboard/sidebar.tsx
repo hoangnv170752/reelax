@@ -18,6 +18,7 @@ import { FolderOpen, BarChart3, Calendar, Settings, Youtube, Twitter, Menu, X } 
 import { gsap } from "gsap"
 import { useAuth } from "@/components/auth/supabase-auth-provider"
 import { SettingsModal } from "./settings-modal"
+import { useModalContext } from "./header"
 
 interface SidebarProps {
   isCollapsed: boolean
@@ -28,6 +29,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
   const { user, signOut } = useAuth()
   const sidebarRef = useRef<HTMLDivElement>(null)
   const [showSettings, setShowSettings] = useState(false)
+  const { setIsSettingsOrLogoutClicked } = useModalContext()
 
   useEffect(() => {
     if (sidebarRef.current) {
@@ -138,7 +140,10 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={signOut}>Sign out</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  setIsSettingsOrLogoutClicked(true);
+                  signOut();
+                }}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           ) : (
@@ -168,7 +173,10 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-48" align="end" side="right">
-                  <DropdownMenuItem onClick={() => setShowSettings(true)}>
+                  <DropdownMenuItem onClick={() => {
+                    setIsSettingsOrLogoutClicked(true);
+                    setShowSettings(true);
+                  }}>
                     <Settings className="w-4 h-4 mr-2" />
                     Settings
                   </DropdownMenuItem>

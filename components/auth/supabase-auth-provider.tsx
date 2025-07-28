@@ -118,6 +118,35 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     
     // Save auth information to localStorage and ensure cookies are set
     if (data.session && data.user) {
+      const { data: profileData, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', data.user.id)
+        .single()
+      
+      if (profileError || !profileData) {
+        const firstName = data.user.user_metadata.first_name || 'User'
+        const lastName = data.user.user_metadata.last_name || ''
+        const avatarUrl = data.user.user_metadata.avatar_url || '/placeholder.svg?height=32&width=32'
+        
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            first_name: firstName,
+            last_name: lastName,
+            display_name: `${firstName} ${lastName}`.trim(),
+            avatar_url: avatarUrl,
+            type_account: 1, // Default account type
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
+          })
+        
+        if (insertError) {
+          console.error('Error creating user profile:', insertError)
+        }
+      }
+      
       // Set localStorage for client-side components
       localStorage.setItem('supabase_auth_token', data.session.access_token)
       localStorage.setItem('supabase_refresh_token', data.session.refresh_token)
