@@ -1,20 +1,21 @@
 "use client"
 
-import type React from "react"
+import React from "react"
 
 import { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { MessageCircle, Sparkles, Play, Settings, X } from "lucide-react"
+import { MessageCircle, Sparkles, Play, Settings, X, Brain, Wand2 } from "lucide-react"
 import { gsap } from "gsap"
 import { Draggable } from "gsap/Draggable"
+import type { LucideIcon } from "lucide-react"
 
 interface Agent {
   id: string
   title: string
   description: string
-  icon: any
+  icon: LucideIcon
   color: string
   iconColor: string
   category: string
@@ -51,9 +52,18 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
   ])
 
   const [draggedNode, setDraggedNode] = useState<string | null>(null)
+  const draggableInstances = useRef<any[]>([])
 
   useEffect(() => {
     gsap.registerPlugin(Draggable)
+
+    // Clean up previous draggable instances
+    draggableInstances.current.forEach((instance) => {
+      if (instance && instance.kill) {
+        instance.kill()
+      }
+    })
+    draggableInstances.current = []
 
     // Animate canvas nodes
     gsap.from(".workflow-node", {
@@ -65,30 +75,45 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
       ease: "back.out(1.7)",
     })
 
-    // Make nodes draggable
-    workflowNodes.forEach((node) => {
-      const element = document.getElementById(`node-${node.id}`)
-      if (element) {
-        Draggable.create(element, {
-          type: "x,y",
-          bounds: canvasRef.current,
-          onDrag: function () {
-            setWorkflowNodes((prev) =>
-              prev.map((n) => (n.id === node.id ? { ...n, position: { x: this.x, y: this.y } } : n)),
-            )
-          },
-          onDragStart: () => {
-            setDraggedNode(node.id)
-            gsap.to(element, { scale: 1.05, duration: 0.2 })
-          },
-          onDragEnd: () => {
-            setDraggedNode(null)
-            gsap.to(element, { scale: 1, duration: 0.2 })
-          },
-        })
-      }
-    })
-  }, [workflowNodes])
+    // Make nodes draggable after animation completes
+    setTimeout(() => {
+      workflowNodes.forEach((node) => {
+        const element = document.getElementById(`node-${node.id}`)
+        if (element && canvasRef.current) {
+          const draggableInstance = Draggable.create(element, {
+            type: "x,y",
+            bounds: canvasRef.current,
+            cursor: "grab",
+            activeCursor: "grabbing",
+            onDrag: function () {
+              setWorkflowNodes((prev) =>
+                prev.map((n) => (n.id === node.id ? { ...n, position: { x: this.x, y: this.y } } : n)),
+              )
+            },
+            onDragStart: () => {
+              setDraggedNode(node.id)
+              gsap.to(element, { scale: 1.05, duration: 0.2, zIndex: 1000 })
+            },
+            onDragEnd: () => {
+              setDraggedNode(null)
+              gsap.to(element, { scale: 1, duration: 0.2, zIndex: 10 })
+            },
+          })[0]
+
+          draggableInstances.current.push(draggableInstance)
+        }
+      })
+    }, 1000)
+
+    // Cleanup function
+    return () => {
+      draggableInstances.current.forEach((instance) => {
+        if (instance && instance.kill) {
+          instance.kill()
+        }
+      })
+    }
+  }, [workflowNodes.length]) // Only re-run when nodes are added/removed
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
@@ -143,20 +168,33 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
   const processNode = async (nodeId: string) => {
     setWorkflowNodes((prev) => prev.map((node) => (node.id === nodeId ? { ...node, status: "processing" } : node)))
 
-    // Simulate processing
+    const node = workflowNodes.find((n) => n.id === nodeId)
+
+    // Simulate different processing times and outputs based on agent type
+    const processingTime = node?.agentId === "qloo-quality" ? 3000 : node?.agentId === "openai-generator" ? 4000 : 2000
+
     setTimeout(() => {
+      let output = `Generated content for ${node?.title}`
+
+      // Customize output based on agent type
+      if (node?.agentId === "qloo-quality") {
+        output = "Quality Score: 8.5/10 - Enhanced cultural relevance and engagement potential"
+      } else if (node?.agentId === "openai-generator") {
+        output = "Generated: High-quality text content and thumbnail image optimized for viral potential"
+      }
+
       setWorkflowNodes((prev) =>
-        prev.map((node) =>
-          node.id === nodeId
+        prev.map((n) =>
+          n.id === nodeId
             ? {
-                ...node,
+                ...n,
                 status: "completed",
-                output: `Generated content for ${node.title}`,
+                output,
               }
-            : node,
+            : n,
         ),
       )
-    }, 2000)
+    }, processingTime)
   }
 
   const getStatusColor = (status: string) => {
@@ -172,6 +210,33 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
       default:
         return "bg-gray-100 text-gray-700 border-gray-200"
     }
+  }
+
+  const getAgentSpecificContent = (node: WorkflowNode) => {
+    if (node.agentId === "qloo-quality") {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Brain className="w-4 h-4 text-amber-600" />
+            <span className="text-xs font-medium">Qloo Analysis</span>
+          </div>
+          <div className="text-xs text-gray-600">
+            • Cultural relevance check • Quality assessment • Engagement prediction
+          </div>
+        </div>
+      )
+    } else if (node.agentId === "openai-generator") {
+      return (
+        <div className="space-y-2">
+          <div className="flex items-center space-x-2">
+            <Wand2 className="w-4 h-4 text-emerald-600" />
+            <span className="text-xs font-medium">OpenAI Generation</span>
+          </div>
+          <div className="text-xs text-gray-600">• Text content creation • Image generation • Multi-modal output</div>
+        </div>
+      )
+    }
+    return null
   }
 
   return (
@@ -192,33 +257,41 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
           <div
             key={node.id}
             id={`node-${node.id}`}
-            className={`workflow-node absolute ${draggedNode === node.id ? "z-50" : "z-10"}`}
+            className={`workflow-node absolute select-none ${draggedNode === node.id ? "z-50" : "z-10"}`}
             style={{
               left: node.position.x,
               top: node.position.y,
+              transform: "translate3d(0, 0, 0)", // Enable hardware acceleration
             }}
           >
             <Card
-              className={`w-64 shadow-sm hover:shadow-md transition-shadow cursor-move ${
+              className={`w-64 shadow-sm hover:shadow-md transition-shadow ${
                 node.agent ? node.agent.color : "bg-white border-gray-200"
               }`}
             >
-              <CardHeader className="pb-3">
+              <CardHeader className="pb-3 cursor-grab active:cursor-grabbing">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
-                    {node.agent && <node.agent.icon className={`w-4 h-4 ${node.agent.iconColor}`} />}
-                    <CardTitle className="text-sm font-medium">{node.title}</CardTitle>
+                    {node.agent &&
+                      React.createElement(node.agent.icon, {
+                        className: `w-4 h-4 ${node.agent.iconColor}`,
+                      })}
+                    <CardTitle className="text-sm font-medium pointer-events-none">{node.title}</CardTitle>
                   </div>
                   <div className="flex items-center space-x-1">
-                    <Badge variant="secondary" className={getStatusColor(node.status)}>
+                    <Badge variant="secondary" className={`${getStatusColor(node.status)} pointer-events-none`}>
                       {node.status}
                     </Badge>
                     {node.type === "agent" && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        onClick={() => removeNode(node.id)}
-                        className="h-6 w-6 p-0 hover:bg-red-100"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeNode(node.id)
+                        }}
+                        className="h-6 w-6 p-0 hover:bg-red-100 cursor-pointer"
+                        style={{ pointerEvents: "auto" }}
                       >
                         <X className="w-3 h-3" />
                       </Button>
@@ -229,16 +302,28 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
               <CardContent className="pt-0">
                 {node.type === "source" ? (
                   <div className="space-y-3">
-                    <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center">
+                    <div className="aspect-video bg-gray-100 rounded-lg flex items-center justify-center pointer-events-none">
                       <Play className="w-8 h-8 text-gray-400" />
                     </div>
-                    <p className="text-xs text-gray-500">Videos_Library_Loom - 5 June 2025</p>
+                    <p className="text-xs text-gray-500 pointer-events-none">Videos_Library_Loom - 5 June 2025</p>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 bg-transparent cursor-pointer"
+                        style={{ pointerEvents: "auto" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <Settings className="w-3 h-3 mr-1" />
                         Retry
                       </Button>
-                      <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 bg-transparent cursor-pointer"
+                        style={{ pointerEvents: "auto" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         Upload
                       </Button>
                     </div>
@@ -248,31 +333,49 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
                     <div className="text-center py-4">
                       {node.status === "completed" && node.output ? (
                         <div className="text-left">
-                          <p className="text-sm font-medium text-gray-900 mb-1">Generated Content:</p>
-                          <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded">{node.output}</p>
+                          <p className="text-sm font-medium text-gray-900 mb-1 pointer-events-none">
+                            Generated Content:
+                          </p>
+                          <p className="text-xs text-gray-600 bg-gray-50 p-2 rounded pointer-events-none">
+                            {node.output}
+                          </p>
                         </div>
                       ) : node.status === "processing" ? (
-                        <div className="flex items-center justify-center space-x-2">
+                        <div className="flex items-center justify-center space-x-2 pointer-events-none">
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
                           <p className="text-sm text-blue-600">Processing...</p>
                         </div>
                       ) : (
                         <>
-                          <p className="text-sm text-gray-500 mb-2">No content generated yet</p>
-                          <p className="text-xs text-gray-400">Click Generate to create</p>
+                          {getAgentSpecificContent(node) || (
+                            <>
+                              <p className="text-sm text-gray-500 mb-2 pointer-events-none">No content generated yet</p>
+                              <p className="text-xs text-gray-400 pointer-events-none">Click Generate to create</p>
+                            </>
+                          )}
                         </>
                       )}
                     </div>
                     <div className="flex space-x-2">
-                      <Button size="sm" variant="outline" className="flex-1 bg-transparent">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 bg-transparent cursor-pointer"
+                        style={{ pointerEvents: "auto" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
                         <MessageCircle className="w-3 h-3 mr-1" />
                         Chat
                       </Button>
                       <Button
                         size="sm"
-                        className="flex-1 bg-blue-600 hover:bg-blue-700"
-                        onClick={() => processNode(node.id)}
+                        className="flex-1 bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          processNode(node.id)
+                        }}
                         disabled={node.status === "processing"}
+                        style={{ pointerEvents: "auto" }}
                       >
                         <Sparkles className="w-3 h-3 mr-1" />
                         Generate
@@ -298,7 +401,7 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
 
       {/* Mini Map */}
       {miniMapEnabled && (
-        <div className="absolute bottom-4 right-4 w-48 h-32 bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="absolute bottom-4 right-4 w-48 h-32 bg-white border border-gray-200 rounded-lg shadow-sm pointer-events-auto">
           <div className="p-2">
             <div className="text-xs text-gray-500 mb-2">Canvas Overview</div>
             <div className="relative w-full h-20 bg-gray-50 rounded">

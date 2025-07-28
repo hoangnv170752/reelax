@@ -19,6 +19,8 @@ import {
   MessageSquare,
   Calendar,
   BarChart3,
+  Brain,
+  Wand2,
 } from "lucide-react"
 import Link from "next/link"
 import { gsap } from "gsap"
@@ -88,6 +90,24 @@ export function ProjectWorkspace({ projectId }: ProjectWorkspaceProps) {
       icon: FileText,
       color: "bg-indigo-100 border-indigo-200",
       iconColor: "text-indigo-600",
+      category: "content",
+    },
+    {
+      id: "qloo-quality",
+      title: "Qloo Quality Judge",
+      description: "Judge quality & enhance cultural parts",
+      icon: Brain,
+      color: "bg-amber-100 border-amber-200",
+      iconColor: "text-amber-600",
+      category: "content",
+    },
+    {
+      id: "openai-generator",
+      title: "OpenAI Generator",
+      description: "Generate text & image content",
+      icon: Wand2,
+      color: "bg-emerald-100 border-emerald-200",
+      iconColor: "text-emerald-600",
       category: "content",
     },
   ]
