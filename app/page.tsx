@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useRef } from "react"
+import { useEffect, useRef, Suspense } from "react"
 import Link from "next/link"
 import { useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -14,13 +14,10 @@ import { AuthButton } from "@/components/auth/sign-in-button"
 import { useAuth } from "@/components/auth/supabase-auth-provider"
 import { useToast } from "@/components/ui/use-toast"
 
-export default function LandingPage() {
-  const { isSignedIn, isLoaded } = useAuth()
-  const { toast } = useToast()
+// Component that uses useSearchParams wrapped in Suspense
+function SearchParamsHandler() {
   const searchParams = useSearchParams()
-  const heroRef = useRef<HTMLDivElement>(null)
-  const featuresRef = useRef<HTMLDivElement>(null)
-  const statsRef = useRef<HTMLDivElement>(null)
+  const { toast } = useToast()
   
   // Check for auth=required query param and show toast notification
   useEffect(() => {
@@ -33,6 +30,16 @@ export default function LandingPage() {
       })
     }
   }, [searchParams, toast])
+  
+  return null
+}
+
+export default function LandingPage() {
+  const { isSignedIn, isLoaded } = useAuth()
+  const { toast } = useToast()
+  const heroRef = useRef<HTMLDivElement>(null)
+  const featuresRef = useRef<HTMLDivElement>(null)
+  const statsRef = useRef<HTMLDivElement>(null)
   
   // Temporarily disable auto-redirect to debug redirect loop issue
   // useEffect(() => {
@@ -117,6 +124,10 @@ export default function LandingPage() {
   return (
     <GSAPProvider>
       <div className="min-h-screen bg-white text-gray-900">
+        {/* Suspense boundary for useSearchParams */}
+        <Suspense fallback={null}>
+          <SearchParamsHandler />
+        </Suspense>
         {/* Header */}
         <header className="border-b border-gray-200">
           <div className="container mx-auto px-4 py-4 flex items-center justify-between">

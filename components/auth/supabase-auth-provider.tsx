@@ -139,6 +139,18 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     if (error) {
       throw error
     }
+    
+    // Clear localStorage items
+    localStorage.removeItem('supabase_auth_token')
+    localStorage.removeItem('supabase_refresh_token')
+    localStorage.removeItem('supabase_user')
+    
+    // Clear cookies
+    document.cookie = 'sb-auth-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    document.cookie = 'sb-refresh-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax'
+    
+    // Redirect to landing page
+    window.location.href = '/'
   }
 
   return (

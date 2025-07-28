@@ -59,8 +59,9 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {/* Header */}
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-full flex items-center justify-center">
               <div className="w-3 h-3 bg-white rounded-full"></div>
+              <div className="w-1 h-1 bg-white rounded-full ml-1"></div>
             </div>
             {!isCollapsed && <span className="text-lg font-bold text-gray-900">Reelax</span>}
           </div>
@@ -157,13 +158,42 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   <p className="text-xs text-gray-500">Relaxing & Creating</p>
                 </div>
               </div>
-              <button
-                onClick={() => setShowSettings(true)}
-                className="nav-item flex items-center text-gray-600 hover:text-gray-900 p-2 w-full rounded-md hover:bg-gray-50"
-              >
-                <Settings className="w-4 h-4 flex-shrink-0" />
-                <span className="ml-3">Settings</span>
-              </button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    className="nav-item flex items-center text-gray-600 hover:text-gray-900 p-2 w-full rounded-md hover:bg-gray-50"
+                  >
+                    <Settings className="w-4 h-4 flex-shrink-0" />
+                    <span className="ml-3">Settings</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-48" align="end" side="right">
+                  <DropdownMenuItem onClick={() => setShowSettings(true)}>
+                    <Settings className="w-4 h-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut}>
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      width="16"
+                      height="16"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="mr-2"
+                    >
+                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                      <polyline points="16 17 21 12 16 7" />
+                      <line x1="21" y1="12" x2="9" y2="12" />
+                    </svg>
+                    Logout
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </>
           )}
         </div>

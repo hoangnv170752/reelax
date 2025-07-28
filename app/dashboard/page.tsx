@@ -18,39 +18,65 @@ function DashboardContent() {
   }
 
   useEffect(() => {
-    // Initial animations
-    gsap.from(sidebarRef.current, {
-      x: -300,
-      opacity: 0,
-      duration: 0.8,
-      ease: "power3.out",
-    })
+    // Clear any existing GSAP animations first
+    gsap.killTweensOf([sidebarRef.current, mainRef.current, ".stat-card", ".project-card"])
+    
+    // Reset element states to ensure proper animation
+    if (sidebarRef.current) gsap.set(sidebarRef.current, { clearProps: "all" })
+    if (mainRef.current) gsap.set(mainRef.current, { clearProps: "all" })
+    gsap.set(".stat-card", { clearProps: "all" })
+    gsap.set(".project-card", { clearProps: "all" })
+    
+    const animationTimeout = setTimeout(() => {
+      if (sidebarRef.current) {
+        gsap.from(sidebarRef.current, {
+          x: -300,
+          opacity: 0,
+          duration: 0.8,
+          ease: "power3.out",
+        })
+      }
 
-    gsap.from(mainRef.current, {
-      x: 50,
-      opacity: 0,
-      duration: 0.8,
-      delay: 0.2,
-      ease: "power2.out",
-    })
+      if (mainRef.current) {
+        gsap.from(mainRef.current, {
+          x: 50,
+          opacity: 0,
+          duration: 0.8,
+          delay: 0.2,
+          ease: "power2.out",
+        })
+      }
 
-    // Stats cards animation
-    gsap.from(".stat-card", {
-      y: 30,
-      opacity: 0,
-      duration: 0.6,
-      stagger: 0.1,
-      delay: 0.4,
-      ease: "back.out(1.7)",
-    })
+      // Stats cards animation - only if they exist in the DOM
+      const statCards = document.querySelectorAll(".stat-card")
+      if (statCards.length > 0) {
+        gsap.from(".stat-card", {
+          y: 30,
+          opacity: 0,
+          duration: 0.6,
+          stagger: 0.1,
+          delay: 0.4,
+          ease: "back.out(1.7)",
+        })
+      }
 
-    gsap.from(".project-card", {
-      y: 20,
-      duration: 0.4,
-      stagger: 0.1,
-      delay: 0.6,
-      ease: "power2.out",
-    })
+      const projectCards = document.querySelectorAll(".project-card")
+      if (projectCards.length > 0) {
+        gsap.from(".project-card", {
+          y: 20,
+          duration: 0.4,
+          stagger: 0.1,
+          delay: 0.6,
+          ease: "power2.out",
+        })
+      }
+    }, 50) // Small delay to ensure DOM is ready
+    
+    return () => {
+      clearTimeout(animationTimeout)
+      // Clean up animations when component unmounts
+      gsap.killTweensOf([sidebarRef.current, mainRef.current, ".stat-card", ".project-card"])
+    }
 
     // Sidebar navigation hover effects
     const navItems = document.querySelectorAll(".nav-item")

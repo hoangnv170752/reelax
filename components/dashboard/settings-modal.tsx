@@ -345,7 +345,12 @@ export function SettingsModal({ trigger }: SettingsModalProps) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+      // Only update state if it's different to prevent retriggering
+      if (open !== isOpen) {
+        setIsOpen(open);
+      }
+    }}>
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="ghost" className="w-full justify-start">

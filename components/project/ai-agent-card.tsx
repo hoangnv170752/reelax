@@ -70,24 +70,24 @@ export const contentAgents: Agent[] = [
     iconColor: "text-purple-600",
     category: "Content",
   },
-  {
-    id: "hashtag-generator",
-    title: "Hashtag Generator",
-    description: "Generate trending hashtags to maximize reach and engagement",
-    icon: Hash,
-    color: "bg-pink-50 border-pink-200",
-    iconColor: "text-pink-600",
-    category: "Content",
-  },
-  {
-    id: "trend-analyzer",
-    title: "Trend Analyzer",
-    description: "Analyze current trends and viral content patterns",
-    icon: TrendingUp,
-    color: "bg-orange-50 border-orange-200",
-    iconColor: "text-orange-600",
-    category: "Analysis",
-  },
+  // {
+  //   id: "hashtag-generator",
+  //   title: "Hashtag Generator",
+  //   description: "Generate trending hashtags to maximize reach and engagement",
+  //   icon: Hash,
+  //   color: "bg-pink-50 border-pink-200",
+  //   iconColor: "text-pink-600",
+  //   category: "Content",
+  // },
+  // {
+  //   id: "trend-analyzer",
+  //   title: "Trend Analyzer",
+  //   description: "Analyze current trends and viral content patterns",
+  //   icon: TrendingUp,
+  //   color: "bg-orange-50 border-orange-200",
+  //   iconColor: "text-orange-600",
+  //   category: "Analysis",
+  // },
 ]
 
 // Group agents by category

@@ -33,36 +33,6 @@ const projects = [
     views: "0",
     tags: ["Food", "Tutorial", "Lifestyle"],
   },
-  {
-    id: 4,
-    title: "Gaming Highlights",
-    description: "Epic gaming moments and funny fails compilation",
-    platform: "TikTok" as const,
-    status: "Published" as const,
-    lastUpdated: "5 days ago",
-    views: "2.1M",
-    tags: ["Gaming", "Funny", "Highlights"],
-  },
-  {
-    id: 5,
-    title: "Fitness Journey",
-    description: "30-day transformation workout series",
-    platform: "YouTube" as const,
-    status: "In Progress" as const,
-    lastUpdated: "1 week ago",
-    views: "450K",
-    tags: ["Fitness", "Transformation", "Health"],
-  },
-  {
-    id: 6,
-    title: "Travel Vlogs",
-    description: "Exploring hidden gems around the world",
-    platform: "YouTube" as const,
-    status: "Draft" as const,
-    lastUpdated: "2 weeks ago",
-    views: "0",
-    tags: ["Travel", "Adventure", "Culture"],
-  },
 ]
 
 export function ProjectsGrid() {
