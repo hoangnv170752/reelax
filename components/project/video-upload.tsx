@@ -2,90 +2,107 @@
 
 import type React from "react"
 
-import { useState, useCallback } from "react"
+import { useState, useRef } from "react"
 import { Button } from "@/components/ui/button"
-import { CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Upload, X, Play, FileVideo } from "lucide-react"
-import { uploadToVideoDB } from "@/lib/videodb"
+import { Badge } from "@/components/ui/badge"
+import { Upload, File, X, CheckCircle, AlertCircle } from "lucide-react"
 
-interface UploadedVideo {
+interface UploadedFile {
   id: string
   name: string
   size: number
-  duration?: number
-  thumbnail?: string
-  status: "uploading" | "processing" | "ready" | "error"
   progress: number
+  status: "uploading" | "completed" | "error"
+  url?: string
 }
 
-export function VideoUpload() {
-  const [videos, setVideos] = useState<UploadedVideo[]>([])
-  const [isDragOver, setIsDragOver] = useState(false)
+interface VideoUploadProps {
+  onVideoUploaded?: (videoData: any) => void
+  projectId?: string
+}
 
-  const handleDrop = useCallback(async (e: React.DragEvent) => {
+export function VideoUpload({ onVideoUploaded, projectId }: VideoUploadProps) {
+  const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
+  const [isDragging, setIsDragging] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
-    setIsDragOver(false)
+    setIsDragging(true)
+  }
 
-    const files = Array.from(e.dataTransfer.files).filter((file) => file.type.startsWith("video/"))
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
+  }
 
-    for (const file of files) {
-      const videoId = `video-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setIsDragging(false)
 
-      const newVideo: UploadedVideo = {
-        id: videoId,
+    const files = Array.from(e.dataTransfer.files)
+    handleFiles(files)
+  }
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || [])
+    handleFiles(files)
+  }
+
+  const handleFiles = (files: File[]) => {
+    const videoFiles = files.filter((file) => file.type.startsWith("video/"))
+
+    videoFiles.forEach((file) => {
+      const fileId = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+      const newFile: UploadedFile = {
+        id: fileId,
         name: file.name,
         size: file.size,
-        status: "uploading",
         progress: 0,
+        status: "uploading",
       }
 
-      setVideos((prev) => [...prev, newVideo])
+      setUploadedFiles((prev) => [...prev, newFile])
 
-      try {
-        // Simulate upload progress
-        const progressInterval = setInterval(() => {
-          setVideos((prev) =>
-            prev.map((v) => (v.id === videoId && v.progress < 90 ? { ...v, progress: v.progress + 10 } : v)),
-          )
-        }, 200)
+      // Simulate upload progress
+      simulateUpload(fileId, file)
+    })
+  }
 
-        // Upload to VideoDB
-        const result = await uploadToVideoDB(file)
+  const simulateUpload = async (fileId: string, file: File) => {
+    // Simulate upload progress
+    for (let progress = 0; progress <= 100; progress += 10) {
+      await new Promise((resolve) => setTimeout(resolve, 200))
 
-        clearInterval(progressInterval)
-
-        setVideos((prev) =>
-          prev.map((v) =>
-            v.id === videoId
-              ? {
-                  ...v,
-                  status: "ready",
-                  progress: 100,
-                  duration: result.duration,
-                  thumbnail: result.thumbnail,
-                }
-              : v,
-          ),
-        )
-      } catch (error) {
-        setVideos((prev) => prev.map((v) => (v.id === videoId ? { ...v, status: "error", progress: 0 } : v)))
-      }
+      setUploadedFiles((prev) => prev.map((f) => (f.id === fileId ? { ...f, progress } : f)))
     }
-  }, [])
 
-  const handleDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(true)
-  }, [])
+    // Mark as completed
+    setUploadedFiles((prev) =>
+      prev.map((f) =>
+        f.id === fileId
+          ? {
+              ...f,
+              status: "completed",
+              url: URL.createObjectURL(file),
+            }
+          : f,
+      ),
+    )
 
-  const handleDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault()
-    setIsDragOver(false)
-  }, [])
+    // Call the callback
+    onVideoUploaded?.({
+      id: fileId,
+      name: file.name,
+      size: file.size,
+      url: URL.createObjectURL(file),
+    })
+  }
 
-  const removeVideo = (videoId: string) => {
-    setVideos((prev) => prev.filter((v) => v.id !== videoId))
+  const removeFile = (fileId: string) => {
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId))
   }
 
   const formatFileSize = (bytes: number) => {
@@ -96,91 +113,73 @@ export function VideoUpload() {
     return Number.parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i]
   }
 
-  const formatDuration = (seconds?: number) => {
-    if (!seconds) return "Unknown"
-    const mins = Math.floor(seconds / 60)
-    const secs = Math.floor(seconds % 60)
-    return `${mins}:${secs.toString().padStart(2, "0")}`
-  }
-
   return (
-    <div className="fixed bottom-4 right-4 w-80 max-h-96 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-medium flex items-center">
-          <FileVideo className="w-4 h-4 mr-2" />
-          Video Library
-        </CardTitle>
-      </CardHeader>
+    <div className="space-y-4">
+      <Card
+        className={`border-2 border-dashed transition-colors ${
+          isDragging ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
+        }`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        <CardContent className="p-6 text-center">
+          <Upload className="w-8 h-8 text-gray-400 mx-auto mb-4" />
+          <p className="text-sm text-gray-600 mb-2">Drag and drop your video files here</p>
+          <p className="text-xs text-gray-500 mb-4">Supports MP4, MOV, AVI up to 500MB</p>
+          <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()}>
+            Browse Files
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="video/*"
+            multiple
+            className="hidden"
+            onChange={handleFileSelect}
+          />
+        </CardContent>
+      </Card>
 
-      <CardContent className="p-0">
-        {/* Drop Zone */}
-        <div
-          className={`m-4 p-6 border-2 border-dashed rounded-lg transition-colors ${
-            isDragOver ? "border-blue-500 bg-blue-50" : "border-gray-300 hover:border-gray-400"
-          }`}
-          onDrop={handleDrop}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-        >
-          <div className="text-center">
-            <Upload className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-            <p className="text-sm text-gray-600">Drop video files here</p>
-            <p className="text-xs text-gray-500 mt-1">MP4, MOV, AVI, MKV supported</p>
-          </div>
-        </div>
-
-        {/* Video List */}
-        {videos.length > 0 && (
-          <div className="max-h-48 overflow-y-auto border-t border-gray-200">
-            {videos.map((video) => (
-              <div key={video.id} className="p-3 border-b border-gray-100 last:border-b-0">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center space-x-2 flex-1 min-w-0">
-                    <div className="w-8 h-8 bg-gray-100 rounded flex items-center justify-center flex-shrink-0">
-                      {video.thumbnail ? (
-                        <img
-                          src={video.thumbnail || "/placeholder.svg"}
-                          alt={video.name}
-                          className="w-full h-full object-cover rounded"
-                        />
-                      ) : (
-                        <Play className="w-4 h-4 text-gray-400" />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-medium text-gray-900 truncate">{video.name}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatFileSize(video.size)} • {formatDuration(video.duration)}
-                      </p>
-                    </div>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => removeVideo(video.id)}
-                    className="h-6 w-6 p-0 flex-shrink-0"
-                  >
-                    <X className="w-3 h-3" />
-                  </Button>
+      {uploadedFiles.length > 0 && (
+        <div className="space-y-2">
+          <h4 className="text-sm font-medium text-gray-900">Uploaded Files</h4>
+          {uploadedFiles.map((file) => (
+            <Card key={file.id} className="p-3">
+              <div className="flex items-center space-x-3">
+                <div className="flex-shrink-0">
+                  {file.status === "completed" && <CheckCircle className="w-5 h-5 text-green-500" />}
+                  {file.status === "error" && <AlertCircle className="w-5 h-5 text-red-500" />}
+                  {file.status === "uploading" && <File className="w-5 h-5 text-blue-500" />}
                 </div>
 
-                {video.status === "uploading" && (
-                  <div className="space-y-1">
-                    <Progress value={video.progress} className="h-1" />
-                    <p className="text-xs text-blue-600">Uploading... {video.progress}%</p>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between mb-1">
+                    <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                    <Button variant="ghost" size="sm" onClick={() => removeFile(file.id)} className="h-6 w-6 p-0">
+                      <X className="w-3 h-3" />
+                    </Button>
                   </div>
-                )}
 
-                {video.status === "processing" && <p className="text-xs text-yellow-600">Processing...</p>}
+                  <div className="flex items-center justify-between text-xs text-gray-500">
+                    <span>{formatFileSize(file.size)}</span>
+                    <Badge
+                      variant={
+                        file.status === "completed" ? "default" : file.status === "error" ? "destructive" : "secondary"
+                      }
+                      className="text-xs"
+                    >
+                      {file.status}
+                    </Badge>
+                  </div>
 
-                {video.status === "ready" && <p className="text-xs text-green-600">Ready to use</p>}
-
-                {video.status === "error" && <p className="text-xs text-red-600">Upload failed</p>}
+                  {file.status === "uploading" && <Progress value={file.progress} className="mt-2 h-1" />}
+                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

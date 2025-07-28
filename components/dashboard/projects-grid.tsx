@@ -7,8 +7,8 @@ const projects = [
     id: 1,
     title: "My Viral TikTok Series",
     description: "Dance challenge compilation for Gen Z audience",
-    platform: "TikTok",
-    status: "In Progress",
+    platform: "TikTok" as const,
+    status: "In Progress" as const,
     lastUpdated: "2 hours ago",
     views: "1.2M",
     tags: ["Dance", "Viral", "Gen Z"],
@@ -17,8 +17,8 @@ const projects = [
     id: 2,
     title: "Tech Review Channel",
     description: "Latest smartphone reviews and comparisons",
-    platform: "YouTube",
-    status: "Published",
+    platform: "YouTube" as const,
+    status: "Published" as const,
     lastUpdated: "1 day ago",
     views: "850K",
     tags: ["Tech", "Review", "Educational"],
@@ -27,20 +27,52 @@ const projects = [
     id: 3,
     title: "Cooking Shorts",
     description: "Quick recipe videos for busy professionals",
-    platform: "YouTube",
-    status: "Draft",
+    platform: "YouTube" as const,
+    status: "Draft" as const,
     lastUpdated: "3 days ago",
     views: "0",
     tags: ["Food", "Tutorial", "Lifestyle"],
+  },
+  {
+    id: 4,
+    title: "Gaming Highlights",
+    description: "Epic gaming moments and funny fails compilation",
+    platform: "TikTok" as const,
+    status: "Published" as const,
+    lastUpdated: "5 days ago",
+    views: "2.1M",
+    tags: ["Gaming", "Funny", "Highlights"],
+  },
+  {
+    id: 5,
+    title: "Fitness Journey",
+    description: "30-day transformation workout series",
+    platform: "YouTube" as const,
+    status: "In Progress" as const,
+    lastUpdated: "1 week ago",
+    views: "450K",
+    tags: ["Fitness", "Transformation", "Health"],
+  },
+  {
+    id: 6,
+    title: "Travel Vlogs",
+    description: "Exploring hidden gems around the world",
+    platform: "YouTube" as const,
+    status: "Draft" as const,
+    lastUpdated: "2 weeks ago",
+    views: "0",
+    tags: ["Travel", "Adventure", "Culture"],
   },
 ]
 
 export function ProjectsGrid() {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-gray-900">Your Projects</h2>
-        <p className="text-sm text-gray-500">{projects.length} projects</p>
+        <h2 className="text-xl font-semibold text-gray-900">Your Projects</h2>
+        <div className="text-sm text-gray-500">
+          {projects.length} {projects.length === 1 ? "project" : "projects"}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -48,6 +80,23 @@ export function ProjectsGrid() {
           <ProjectCard key={project.id} project={project} />
         ))}
       </div>
+
+      {projects.length === 0 && (
+        <div className="text-center py-12">
+          <div className="w-16 h-16 mx-auto mb-4 bg-gray-100 rounded-full flex items-center justify-center">
+            <svg className="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"
+              />
+            </svg>
+          </div>
+          <h3 className="text-lg font-medium text-gray-900 mb-2">No projects yet</h3>
+          <p className="text-gray-600 mb-4">Get started by creating your first project</p>
+        </div>
+      )}
     </div>
   )
 }

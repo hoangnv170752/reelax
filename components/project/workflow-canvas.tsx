@@ -1,15 +1,22 @@
 "use client"
 
-import React from "react"
-
-import { useState, useRef, useEffect, useCallback } from "react"
+import React, { useState, useRef, useEffect, useCallback } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { MessageCircle, Sparkles, Play, Settings, X, Brain, Wand2 } from "lucide-react"
 import { gsap } from "gsap"
-import { Draggable } from "gsap/Draggable"
 import type { LucideIcon } from "lucide-react"
+
+// Add this function at the top level
+const initializeGSAP = async () => {
+  if (typeof window !== "undefined") {
+    const { Draggable } = await import("gsap/Draggable")
+    gsap.registerPlugin(Draggable)
+    return Draggable
+  }
+  return null
+}
 
 interface Agent {
   id: string
@@ -33,13 +40,11 @@ interface WorkflowNode {
 }
 
 interface WorkflowCanvasProps {
-  agents: Agent[]
-  selectedAgent: string | null
-  miniMapEnabled: boolean
-  projectId: string
+  zoom?: number
+  miniMapEnabled?: boolean
 }
 
-export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectId }: WorkflowCanvasProps) {
+export function WorkflowCanvas({ zoom = 100, miniMapEnabled = true }: WorkflowCanvasProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [workflowNodes, setWorkflowNodes] = useState<WorkflowNode[]>([
     {
@@ -55,55 +60,63 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
   const draggableInstances = useRef<any[]>([])
 
   useEffect(() => {
-    gsap.registerPlugin(Draggable)
+    let draggableClass: any = null
 
-    // Clean up previous draggable instances
-    draggableInstances.current.forEach((instance) => {
-      if (instance && instance.kill) {
-        instance.kill()
-      }
-    })
-    draggableInstances.current = []
+    const setupDraggable = async () => {
+      draggableClass = await initializeGSAP()
 
-    // Animate canvas nodes
-    gsap.from(".workflow-node", {
-      scale: 0.8,
-      opacity: 0,
-      duration: 0.5,
-      stagger: 0.1,
-      delay: 0.5,
-      ease: "back.out(1.7)",
-    })
-
-    // Make nodes draggable after animation completes
-    setTimeout(() => {
-      workflowNodes.forEach((node) => {
-        const element = document.getElementById(`node-${node.id}`)
-        if (element && canvasRef.current) {
-          const draggableInstance = Draggable.create(element, {
-            type: "x,y",
-            bounds: canvasRef.current,
-            cursor: "grab",
-            activeCursor: "grabbing",
-            onDrag: function () {
-              setWorkflowNodes((prev) =>
-                prev.map((n) => (n.id === node.id ? { ...n, position: { x: this.x, y: this.y } } : n)),
-              )
-            },
-            onDragStart: () => {
-              setDraggedNode(node.id)
-              gsap.to(element, { scale: 1.05, duration: 0.2, zIndex: 1000 })
-            },
-            onDragEnd: () => {
-              setDraggedNode(null)
-              gsap.to(element, { scale: 1, duration: 0.2, zIndex: 10 })
-            },
-          })[0]
-
-          draggableInstances.current.push(draggableInstance)
+      // Clean up previous draggable instances
+      draggableInstances.current.forEach((instance) => {
+        if (instance && instance.kill) {
+          instance.kill()
         }
       })
-    }, 1000)
+      draggableInstances.current = []
+
+      // Animate canvas nodes
+      gsap.from(".workflow-node", {
+        scale: 0.8,
+        opacity: 0,
+        duration: 0.5,
+        stagger: 0.1,
+        delay: 0.5,
+        ease: "back.out(1.7)",
+      })
+
+      // Make nodes draggable after animation completes
+      setTimeout(() => {
+        if (!draggableClass) return
+
+        workflowNodes.forEach((node) => {
+          const element = document.getElementById(`node-${node.id}`)
+          if (element && canvasRef.current) {
+            const draggableInstance = draggableClass.create(element, {
+              type: "x,y",
+              bounds: canvasRef.current,
+              cursor: "grab",
+              activeCursor: "grabbing",
+              onDrag: function () {
+                setWorkflowNodes((prev) =>
+                  prev.map((n) => (n.id === node.id ? { ...n, position: { x: this.x, y: this.y } } : n)),
+                )
+              },
+              onDragStart: () => {
+                setDraggedNode(node.id)
+                gsap.to(element, { scale: 1.05, duration: 0.2, zIndex: 1000 })
+              },
+              onDragEnd: () => {
+                setDraggedNode(null)
+                gsap.to(element, { scale: 1, duration: 0.2, zIndex: 10 })
+              },
+            })[0]
+
+            draggableInstances.current.push(draggableInstance)
+          }
+        })
+      }, 1000)
+    }
+
+    setupDraggable()
 
     // Cleanup function
     return () => {
@@ -113,7 +126,7 @@ export function WorkflowCanvas({ agents, selectedAgent, miniMapEnabled, projectI
         }
       })
     }
-  }, [workflowNodes.length]) // Only re-run when nodes are added/removed
+  }, [workflowNodes.length])
 
   const handleDrop = useCallback((e: React.DragEvent) => {
     e.preventDefault()
