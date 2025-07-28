@@ -163,57 +163,50 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   <p className="text-xs text-gray-500">Relaxing & Creating</p>
                 </div>
               </div>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="nav-item flex items-center text-gray-600 hover:text-gray-900 p-2 w-full rounded-md hover:bg-gray-50"
-                  >
-                    <Settings className="w-4 h-4 flex-shrink-0" />
-                    <span className="ml-3">Settings</span>
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-48" align="end" side="right">
-                  <DropdownMenuItem onClick={() => {
+              <div className="space-y-1">
+                <button
+                  className="nav-item flex items-center text-gray-600 hover:text-gray-900 p-2 w-full rounded-md hover:bg-gray-50"
+                  onClick={() => {
                     setIsSettingsOrLogoutClicked(true);
                     setShowSettings(true);
-                  }}>
-                    <Settings className="w-4 h-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut}>
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="16"
-                      height="16"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="mr-2"
-                    >
-                      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                      <polyline points="16 17 21 12 16 7" />
-                      <line x1="21" y1="12" x2="9" y2="12" />
-                    </svg>
-                    Logout
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                  }}
+                >
+                  <Settings className="w-4 h-4 flex-shrink-0" />
+                  <span className="ml-3">Settings</span>
+                </button>
+                
+                <button
+                  className="nav-item flex items-center text-gray-600 hover:text-gray-900 p-2 w-full rounded-md hover:bg-gray-50"
+                  onClick={() => {
+                    setIsSettingsOrLogoutClicked(true);
+                    signOut();
+                  }}
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    className="w-4 h-4 flex-shrink-0"
+                  >
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                    <polyline points="16 17 21 12 16 7" />
+                    <line x1="21" y1="12" x2="9" y2="12" />
+                  </svg>
+                  <span className="ml-3">Logout</span>
+                </button>
+              </div>
             </>
           )}
         </div>
       </aside>
 
-      {showSettings && (
-        <Dialog open={showSettings} onOpenChange={setShowSettings}>
-          <DialogContent>
-            <SettingsModal />
-          </DialogContent>
-        </Dialog>
-      )}
+      <SettingsModal isOpen={showSettings} onOpenChange={setShowSettings} />
     </>
   )
 }

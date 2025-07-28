@@ -40,7 +40,7 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
         try {
           const { data, error } = await supabase
             .from('projects')
-            .select('name')
+            .select('title')
             .eq('id', projectId)
             .single()
             
@@ -49,11 +49,15 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
             return
           }
           
-          if (data?.name) {
-            setProjectName(data.name)
+          if (data?.title) {
+            setProjectName(data.title)
+          } else {
+            setProjectName(`Project ${projectId.substring(0, 8)}`)
           }
         } catch (error) {
           console.error('Error fetching project name:', error)
+          // Set a fallback name in case of error
+          setProjectName(`Project ${projectId.substring(0, 8)}`)
         }
       }
       
@@ -126,20 +130,38 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
 
   const uploadToSupabase = async (fileId: string, file: File) => {
     try {
+      console.log('Starting upload to Supabase for file:', file.name, 'size:', file.size, 'type:', file.type)
+      
       // Check if videos bucket exists, if not create it
-      const { data: buckets } = await supabase.storage.listBuckets()
-      const videosBucketExists = buckets?.some(bucket => bucket.name === 'videos')
+      console.log('Checking if video bucket exists...')
+      const { data: buckets, error: bucketsError } = await supabase.storage.listBuckets()
+      
+      if (bucketsError) {
+        console.error('Error listing buckets:', bucketsError)
+      }
+      
+      console.log('Available buckets:', buckets?.map(b => b.name))
+      const videosBucketExists = buckets?.some(bucket => bucket.name === 'video')
+      console.log('Video bucket exists:', videosBucketExists)
       
       if (!videosBucketExists) {
-        await supabase.storage.createBucket('videos', {
+        console.log('Creating video bucket...')
+        const { data: newBucket, error: createBucketError } = await supabase.storage.createBucket('video', {
           public: true,
           fileSizeLimit: 500000000 // 500MB
         })
+        
+        if (createBucketError) {
+          console.error('Error creating bucket:', createBucketError)
+        } else {
+          console.log('Bucket created successfully:', newBucket)
+        }
       }
       
       // Generate a unique file name to prevent overwriting
       const fileExt = file.name.split('.').pop()
       const fileName = `${projectId || 'general'}/${Date.now()}-${Math.random().toString(36).substring(2, 15)}.${fileExt}`
+      console.log('Generated filename for upload:', fileName)
       
       // Simulate progress while uploading
       const simulateProgress = async () => {
@@ -148,33 +170,48 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
           setUploadedFiles(prev => 
             prev.map(f => f.id === fileId ? { ...f, progress } : f)
           );
+          console.log(`Upload progress simulation: ${progress}%`)
         }
       };
       
       // Start progress simulation
+      console.log('Starting progress simulation')
       const progressSimulation = simulateProgress();
       
       // Upload file
+      console.log('Starting actual file upload to Supabase...')
       const { data, error } = await supabase.storage
-        .from('videos')
+        .from('video')
         .upload(fileName, file, {
           cacheControl: '3600',
           upsert: false
         });
       
+      console.log('Upload response:', { data, error })
+      
       // Set progress to 95% after upload completes
       setUploadedFiles(prev => 
         prev.map(f => f.id === fileId ? { ...f, progress: 95 } : f)
       );
+      console.log('Set progress to 95% after upload')
         
       if (error) {
+        console.error('Upload error details:', {
+          message: error.message,
+          name: error.name,
+          stack: error.stack,
+          // Log the entire error object for debugging
+          fullError: JSON.stringify(error)
+        })
         throw error
       }
       
       // Get public URL
+      console.log('Getting public URL for uploaded file')
       const { data: publicUrl } = supabase.storage
-        .from('videos')
+        .from('video')
         .getPublicUrl(fileName)
+      console.log('Public URL:', publicUrl)
       
       // Mark as completed
       setUploadedFiles((prev) =>
@@ -253,8 +290,19 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
           <p className="text-sm text-gray-600 mb-2">Drag and drop your video files here</p>
           <p className="text-xs text-gray-500 mb-4">Supports MP4, MOV, AVI up to 500MB</p>
           {projectId ? (
-            <p className="text-xs text-blue-500 mb-2">
-              Files will be uploaded to project: {projectName || 'Loading project name...'}
+            <p className="text-xs text-blue-500 mb-2 flex items-center">
+              Files will be uploaded to project: 
+              <span className="font-medium ml-1">
+                {projectName || (
+                  <span className="inline-flex items-center">
+                    <svg className="animate-spin h-3 w-3 mr-1" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    Loading...
+                  </span>
+                )}
+              </span>
             </p>
           ) : (
             <p className="text-xs text-amber-500 mb-2">No project ID provided, files will be uploaded to general folder</p>

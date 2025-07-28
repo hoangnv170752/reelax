@@ -168,7 +168,7 @@ class VideoDBClient {
       return
     }
 
-    const response = await fetch(`${this.config.baseUrl}/videos/${videoId}`, {
+    const response = await fetch(`${this.config.baseUrl}/video/${videoId}`, {
       method: "DELETE",
       headers: {
         Authorization: `Bearer ${this.config.apiKey}`,
@@ -185,7 +185,7 @@ class VideoDBClient {
       return { status: "completed", progress: 100 }
     }
 
-    const response = await fetch(`${this.config.baseUrl}/videos/${videoId}/status`, {
+    const response = await fetch(`${this.config.baseUrl}/video/${videoId}/status`, {
       headers: {
         Authorization: `Bearer ${this.config.apiKey}`,
       },

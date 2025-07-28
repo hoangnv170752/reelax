@@ -37,12 +37,19 @@ import {
 import { useAuth } from "@/components/auth/supabase-auth-provider"
 
 interface SettingsModalProps {
-  trigger?: React.ReactNode
+  isOpen?: boolean
+  onOpenChange?: (open: boolean) => void
 }
 
-export function SettingsModal({ trigger }: SettingsModalProps) {
-  const { user } = useAuth()
-  const [isOpen, setIsOpen] = useState(false)
+export function SettingsModal({ isOpen, onOpenChange }: SettingsModalProps) {
+  const { user, updateUserProfile } = useAuth()
+  const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
+  const [internalOpen, setInternalOpen] = useState(false)
+  
+  // Use either the controlled state from props or internal state
+  const dialogOpen = isOpen !== undefined ? isOpen : internalOpen
+  const setDialogOpen = onOpenChange || setInternalOpen
   const [activeTab, setActiveTab] = useState("profile")
 
   // Settings state
@@ -78,10 +85,27 @@ export function SettingsModal({ trigger }: SettingsModalProps) {
     setSettings((prev) => ({ ...prev, [key]: value }))
   }
 
-  const handleSave = () => {
-    // Here you would typically save to your backend
-    console.log("Saving settings:", settings)
-    setIsOpen(false)
+  const handleSave = async () => {
+    try {
+      setIsSaving(true)
+      setSaveError(null)
+      
+      // Update profile information
+      if (user) {
+        await updateUserProfile(settings.firstName, settings.lastName)
+      }
+      
+      // Here you would save other settings to your backend
+      console.log("Saving settings:", settings)
+      
+      // Close the dialog
+      setDialogOpen(false)
+    } catch (error) {
+      console.error('Error saving profile:', error)
+      setSaveError(error instanceof Error ? error.message : 'An unknown error occurred')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const renderTabContent = () => {
@@ -141,8 +165,10 @@ export function SettingsModal({ trigger }: SettingsModalProps) {
                 id="email"
                 type="email"
                 value={settings.email}
-                onChange={(e) => handleSettingChange("email", e.target.value)}
+                disabled
+                className="bg-gray-50 text-gray-500"
               />
+              <p className="text-xs text-gray-500 mt-1">Email address cannot be changed</p>
             </div>
 
             {/* Account Status */}
@@ -345,20 +371,7 @@ export function SettingsModal({ trigger }: SettingsModalProps) {
   }
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-      // Only update state if it's different to prevent retriggering
-      if (open !== isOpen) {
-        setIsOpen(open);
-      }
-    }}>
-      <DialogTrigger asChild>
-        {trigger || (
-          <Button variant="ghost" className="w-full justify-start">
-            <Settings className="w-4 h-4 mr-3" />
-            Settings
-          </Button>
-        )}
-      </DialogTrigger>
+    <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
       <DialogContent className="sm:max-w-[700px] max-h-[80vh] overflow-hidden">
         <DialogHeader>
           <DialogTitle>Settings</DialogTitle>
@@ -390,13 +403,32 @@ export function SettingsModal({ trigger }: SettingsModalProps) {
           <div className="flex-1 pl-6 overflow-y-auto">{renderTabContent()}</div>
         </div>
 
-        <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
-          <Button variant="outline" onClick={() => setIsOpen(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} className="bg-blue-600 hover:bg-blue-700">
-            Save Changes
-          </Button>
+        <div className="space-y-2">
+          {saveError && (
+            <div className="p-3 text-sm bg-red-50 border border-red-200 text-red-700 rounded-md">
+              {saveError}
+            </div>
+          )}
+          <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+            <Button variant="outline" onClick={() => setDialogOpen(false)} disabled={isSaving}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleSave} 
+              className="bg-blue-600 hover:bg-blue-700"
+              disabled={isSaving}
+            >
+              {isSaving ? (
+                <>
+                  <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  Saving...
+                </>
+              ) : 'Save Changes'}
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>

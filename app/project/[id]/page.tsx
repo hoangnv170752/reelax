@@ -26,7 +26,7 @@ export default function ProjectPage() {
         // Then fetch the project data
         const { data, error } = await supabase
           .from('projects')
-          .select('name')
+          .select('title')
           .eq('id', projectId)
           .single()
           
@@ -35,8 +35,8 @@ export default function ProjectPage() {
           return
         }
         
-        if (data?.name) {
-          setProjectName(data.name)
+        if (data?.title) {
+          setProjectName(data.title)
         } else {
           console.log('Project found but no name available')
         }

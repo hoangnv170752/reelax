@@ -22,6 +22,7 @@ interface AuthContextType {
   signUp: (email: string, password: string) => Promise<void>
   signIn: (email: string, password: string) => Promise<{ user: User; session: Session }>
   signOut: () => Promise<void>
+  updateUserProfile: (firstName: string, lastName: string) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | null>(null)
@@ -182,6 +183,46 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
     window.location.href = '/'
   }
 
+  const updateUserProfile = async (firstName: string, lastName: string) => {
+    if (!user || !session) {
+      throw new Error('User not authenticated')
+    }
+
+    // Update user metadata
+    const { error: metadataError } = await supabase.auth.updateUser({
+      data: {
+        first_name: firstName,
+        last_name: lastName
+      }
+    })
+
+    if (metadataError) {
+      throw metadataError
+    }
+
+    // Update profiles table
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .update({
+        first_name: firstName,
+        last_name: lastName,
+        display_name: `${firstName} ${lastName}`.trim(),
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', user.id)
+
+    if (profileError) {
+      throw profileError
+    }
+
+    // Update local user state
+    setUser({
+      ...user,
+      firstName,
+      lastName
+    })
+  }
+
   return (
     <AuthContext.Provider
       value={{
@@ -192,6 +233,7 @@ export function SupabaseAuthProvider({ children }: { children: React.ReactNode }
         signUp,
         signIn,
         signOut,
+        updateUserProfile
       }}
     >
       {children}
