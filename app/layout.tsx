@@ -1,7 +1,8 @@
 import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
-import { MockAuthProvider } from "@/components/auth/mock-auth-provider"
+import { SupabaseAuthProvider } from "@/components/auth/supabase-auth-provider"
+import { Toaster } from "@/components/ui/toaster"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"] })
@@ -20,8 +21,11 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <MockAuthProvider>{children}</MockAuthProvider>
+      <body className={inter.className} data-gptw="">
+        <SupabaseAuthProvider>
+          {children}
+          <Toaster />
+        </SupabaseAuthProvider>
       </body>
     </html>
   )

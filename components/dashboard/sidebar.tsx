@@ -10,9 +10,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import {
+  Dialog,
+  DialogContent,
+} from "@/components/ui/dialog"
 import { FolderOpen, BarChart3, Calendar, Settings, Youtube, Twitter, Menu, X } from "lucide-react"
 import { gsap } from "gsap"
-import { useAuth } from "@/components/auth/mock-auth-provider"
+import { useAuth } from "@/components/auth/supabase-auth-provider"
 import { SettingsModal } from "./settings-modal"
 
 interface SidebarProps {
@@ -133,10 +137,6 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                   </div>
                 </div>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setShowSettings(true)}>
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={signOut}>Sign out</DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
@@ -169,7 +169,13 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         </div>
       </aside>
 
-      <SettingsModal open={showSettings} onOpenChange={setShowSettings} />
+      {showSettings && (
+        <Dialog open={showSettings} onOpenChange={setShowSettings}>
+          <DialogContent>
+            <SettingsModal />
+          </DialogContent>
+        </Dialog>
+      )}
     </>
   )
 }

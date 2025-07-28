@@ -111,14 +111,4 @@ Reelax aims to become the ultimate AI-powered content creation ecosystem:
 - **Platform Expansion** - Support for emerging social platforms
 - **Creator Marketplace** - Community-driven templates and workflows
 
----
-
-**Ready to relax and let AI transform your content creation?**
-
-Visit: **[https://vercel.com/akashi-projects/v0-kiro-create-website](https://vercel.com/akashi-projects/v0-kiro-create-website)**
-
-Continue building: **[https://v0.dev/chat/projects/qilEkOW8M6a](https://v0.dev/chat/projects/qilEkOW8M6a)**
-
----
-
-*Reelax - Where content creation meets relaxation. Built with ❤️ using v0.dev*
+*Reelax - Where content creation meets relaxation. Built with ❤️ using v0.dev & Kiro.dev*

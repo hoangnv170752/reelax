@@ -34,7 +34,7 @@ import {
   Mail,
   Smartphone,
 } from "lucide-react"
-import { useAuth } from "@/components/auth/mock-auth-provider"
+import { useAuth } from "@/components/auth/supabase-auth-provider"
 
 interface SettingsModalProps {
   trigger?: React.ReactNode

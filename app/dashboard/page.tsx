@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from "react"
 import { gsap } from "gsap"
 import { GSAPProvider } from "@/components/animations/gsap-provider"
-import { ProtectedRoute } from "@/components/auth/protected-route"
 import { Sidebar } from "@/components/dashboard/sidebar"
 import { DashboardHeader } from "@/components/dashboard/header"
 import { StatsCards } from "@/components/dashboard/stats-cards"
@@ -45,36 +44,12 @@ function DashboardContent() {
       ease: "back.out(1.7)",
     })
 
-    // Project cards animation
     gsap.from(".project-card", {
-      y: 40,
-      opacity: 0,
-      duration: 0.6,
+      y: 20,
+      duration: 0.4,
       stagger: 0.1,
       delay: 0.6,
       ease: "power2.out",
-    })
-
-    // Add hover animations to project cards
-    const projectCards = document.querySelectorAll(".project-card")
-    projectCards.forEach((card) => {
-      card.addEventListener("mouseenter", () => {
-        gsap.to(card, {
-          y: -5,
-          scale: 1.02,
-          duration: 0.3,
-          ease: "power2.out",
-        })
-      })
-
-      card.addEventListener("mouseleave", () => {
-        gsap.to(card, {
-          y: 0,
-          scale: 1,
-          duration: 0.3,
-          ease: "power2.out",
-        })
-      })
     })
 
     // Sidebar navigation hover effects
@@ -125,9 +100,7 @@ function DashboardContent() {
 export default function Dashboard() {
   return (
     <GSAPProvider>
-      <ProtectedRoute>
         <DashboardContent />
-      </ProtectedRoute>
     </GSAPProvider>
   )
 }
