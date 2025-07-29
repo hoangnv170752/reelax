@@ -30,6 +30,8 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([])
   const [isDragging, setIsDragging] = useState(false)
   const [projectName, setProjectName] = useState<string | undefined>(initialProjectName)
+  const [projectVideos, setProjectVideos] = useState<any[]>([])
+  const [isLoadingVideos, setIsLoadingVideos] = useState<boolean>(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const { toast } = useToast()
   
@@ -64,6 +66,39 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
       fetchProjectName()
     }
   }, [projectId, projectName])
+  
+  // Fetch project videos
+  useEffect(() => {
+    if (projectId) {
+      const fetchProjectVideos = async () => {
+        try {
+          setIsLoadingVideos(true)
+          console.log('Fetching videos for project:', projectId)
+          
+          const { data, error } = await supabase
+            .from('projects')
+            .select('videos')
+            .eq('id', projectId)
+            .single()
+            
+          if (error) {
+            console.error('Error fetching project videos:', error)
+            return
+          }
+          
+          const videos = data?.videos || []
+          console.log('Fetched project videos:', videos)
+          setProjectVideos(videos)
+        } catch (error) {
+          console.error('Error in fetchProjectVideos:', error)
+        } finally {
+          setIsLoadingVideos(false)
+        }
+      }
+      
+      fetchProjectVideos()
+    }
+  }, [projectId, uploadedFiles.length]) // Re-fetch when new files are uploaded
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault()
@@ -237,7 +272,8 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
       
       toast({
         title: 'Upload successful',
-        description: `${file.name} has been uploaded to the videos bucket.`,
+        description: `${file.name} has been uploaded and linked to the project.`,
+        variant: 'default'
       })
       
     } catch (error: any) {
@@ -291,7 +327,7 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
           <p className="text-xs text-gray-500 mb-4">Supports MP4, MOV, AVI up to 500MB</p>
           {projectId ? (
             <p className="text-xs text-blue-500 mb-2 flex items-center">
-              Files will be uploaded to project: 
+              Files in project: 
               <span className="font-medium ml-1">
                 {projectName || (
                   <span className="inline-flex items-center">
@@ -323,7 +359,7 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
 
       {uploadedFiles.length > 0 && (
         <div className="space-y-2">
-          <h4 className="text-sm font-medium text-gray-900">Uploaded Files</h4>
+          <h4 className="text-sm font-medium text-gray-900">Uploading Files</h4>
           {uploadedFiles.map((file) => (
             <Card key={file.id} className="p-3">
               <div className="flex items-center space-x-3">
@@ -335,8 +371,8 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
 
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1">
-                    <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                    <Button variant="ghost" size="sm" onClick={() => removeFile(file.id)} className="h-6 w-6 p-0">
+                    <p className="text-sm font-medium text-gray-900 truncate max-w-[80%]">{file.name}</p>
+                    <Button variant="ghost" size="sm" onClick={() => removeFile(file.id)} className="h-6 w-6 p-0 flex-shrink-0">
                       <X className="w-3 h-3" />
                     </Button>
                   </div>
@@ -358,6 +394,57 @@ export function VideoUpload({ onVideoUploaded, projectId, projectName: initialPr
               </div>
             </Card>
           ))}
+        </div>
+      )}
+      
+      {/* Display project videos from the videos field */}
+      {projectId && (
+        <div className="space-y-2 mt-6">
+          <h4 className="text-sm font-medium text-gray-900">Project Videos</h4>
+          {isLoadingVideos ? (
+            <Card className="p-4 text-center">
+              <div className="flex items-center justify-center space-x-2">
+                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span className="text-sm text-gray-500">Loading videos...</span>
+              </div>
+            </Card>
+          ) : projectVideos.length > 0 ? (
+            projectVideos.map((video, index) => (
+              <Card key={`project-video-${index}`} className="p-3">
+                <div className="flex items-center space-x-3">
+                  <div className="flex-shrink-0">
+                    <File className="w-5 h-5 text-green-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium text-gray-900 truncate max-w-[60%]">{video.name}</p>
+                      <Badge variant="outline" className="text-xs flex-shrink-0 ml-2">
+                        {new Date(video.uploaded_at).toLocaleDateString()}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center justify-between text-xs text-gray-500">
+                      <span>{formatFileSize(video.size)}</span>
+                      <a 
+                        href={video.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-500 hover:underline"
+                      >
+                        View Video
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))
+          ) : (
+            <Card className="p-4 text-center">
+              <p className="text-sm text-gray-500">No videos uploaded yet</p>
+            </Card>
+          )}
         </div>
       )}
     </div>

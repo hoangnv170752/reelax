@@ -101,15 +101,49 @@ export function ProjectWorkspace({ projectId, projectName: initialProjectName }:
   const handleZoomOut = () => setZoom((prev) => Math.max(prev - 25, 25))
   const handleResetZoom = () => setZoom(100)
 
-  const handleVideoUploaded = (videoData: any) => {
+  const handleVideoUploaded = async (videoData: any) => {
     console.log("Video uploaded:", videoData)
-    // Handle the uploaded video data
+    
+    try {
+      const { data: projectData, error: fetchError } = await supabase
+        .from('projects')
+        .select('videos')
+        .eq('id', projectId)
+        .single()
+      
+      if (fetchError) {
+        console.error('Error fetching project videos:', fetchError)
+        return
+      }
+      
+      const videoWithTimestamp = {
+        ...videoData,
+        uploaded_at: new Date().toISOString()
+      }
+      
+      const currentVideos = projectData?.videos || []
+      
+      const updatedVideos = [...currentVideos, videoWithTimestamp]
+      
+      const { error: updateError } = await supabase
+        .from('projects')
+        .update({ videos: updatedVideos })
+        .eq('id', projectId)
+      
+      if (updateError) {
+        console.error('Error updating project videos:', updateError)
+      } else {
+        console.log('Video successfully stored in project:', videoWithTimestamp)
+      }
+    } catch (error) {
+      console.error('Error in handleVideoUploaded:', error)
+    }
   }
 
   return (
     <div className={`flex h-screen bg-gray-50 ${isFullscreen ? "fixed inset-0 z-50" : ""}`}>
       {/* Left Sidebar - AI Agents */}
-      <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
+      <div className="w-auto min-w-[240px] max-w-xs bg-white border-r border-gray-200 flex flex-col overflow-hidden">
         <div className="p-4 border-b border-gray-200">
           <div className="flex items-center justify-between mb-3">
             <Link href="/dashboard">

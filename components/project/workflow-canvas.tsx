@@ -58,6 +58,7 @@ interface WorkflowNode {
   agentId?: string
   agent?: Agent
   output?: string
+  videoData?: any // Store video metadata for video source nodes
 }
 
 interface Connection {
@@ -100,9 +101,10 @@ export function WorkflowCanvas({ projectId, zoom: initialZoom = 100, miniMapEnab
   const loadWorkflowState = useCallback(async () => {
     try {
       setIsLoading(true)
+      // Fetch both workflow_state and videos
       const { data, error } = await supabase
         .from('projects')
-        .select('workflow_state')
+        .select('workflow_state, videos')
         .eq('id', projectId)
         .single()
 
@@ -110,10 +112,44 @@ export function WorkflowCanvas({ projectId, zoom: initialZoom = 100, miniMapEnab
         throw error
       }
 
-      if (data?.workflow_state) {
-        setWorkflowNodes(data.workflow_state.nodes || [])
-        setConnections(data.workflow_state.connections || [])
+      // Initialize nodes and connections from workflow_state or empty arrays
+      let nodes = data?.workflow_state?.nodes || []
+      let connections = data?.workflow_state?.connections || []
+      
+      // Check if there are videos in the project
+      const videos = data?.videos || []
+      console.log('Project videos:', videos)
+      
+      // Check if we already have a video source node
+      const hasVideoSourceNode = nodes.some((node: WorkflowNode) => 
+        node.type === 'source' && node.title === 'Video Source'
+      )
+      
+      // If we have videos but no video source node, create one
+      if (videos.length > 0 && !hasVideoSourceNode) {
+        console.log('Creating video source node')
+        // Create a video source node with the first video
+        const videoSourceNode: WorkflowNode = {
+          id: `video-source-${Date.now()}`,
+          type: 'source',
+          title: 'Video Source',
+          position: { x: 100, y: 100 }, // Position in top left area
+          status: 'ready',
+          videoData: videos[0] // Store the first video data
+        }
+        
+        // Add the video source node to the nodes array
+        nodes = [...nodes, videoSourceNode]
+        
+        toast({
+          title: 'Video source added',
+          description: 'A video source node has been added to your workflow.',
+        })
       }
+      
+      // Update state with nodes and connections
+      setWorkflowNodes(nodes)
+      setConnections(connections)
     } catch (error) {
       console.error('Error loading workflow state:', error)
       toast({
@@ -478,6 +514,40 @@ export function WorkflowCanvas({ projectId, zoom: initialZoom = 100, miniMapEnab
     setConnections(prev => prev.filter(conn => conn.id !== connectionId))
   }
 
+  // Get connection point element position
+  const getConnectionPointPosition = (nodeId: string, isOutput: boolean) => {
+    // Get the actual DOM element for the connection point
+    const nodeElement = document.getElementById(`node-${nodeId}`)
+    const pointElement = document.getElementById(`${isOutput ? 'output' : 'input'}-point-${nodeId}`)
+    
+    if (!nodeElement || !pointElement) {
+      // Fallback to calculation if elements not found
+      const node = workflowNodes.find(n => n.id === nodeId)
+      if (!node) return null
+      
+      const nodeWidth = 240 // Approximate width of node
+      const nodeHeight = 140 // Approximate height of node
+      
+      return {
+        x: node.position.x + (isOutput ? nodeWidth : 0),
+        y: node.position.y + nodeHeight / 2
+      }
+    }
+    
+    // Get the absolute position of the connection point
+    const nodeRect = nodeElement.getBoundingClientRect()
+    const pointRect = pointElement.getBoundingClientRect()
+    const canvasRect = canvasRef.current?.getBoundingClientRect()
+    
+    if (!canvasRect) return null
+    
+    // Calculate position relative to the canvas
+    return {
+      x: (pointRect.left + pointRect.width / 2 - canvasRect.left) / (zoom / 100),
+      y: (pointRect.top + pointRect.height / 2 - canvasRect.top) / (zoom / 100)
+    }
+  }
+  
   // Calculate position for SVG lines between nodes
   const calculateLinePosition = (fromNodeId: string, toNodeId: string) => {
     const fromNode = workflowNodes.find(node => node.id === fromNodeId)
@@ -485,15 +555,31 @@ export function WorkflowCanvas({ projectId, zoom: initialZoom = 100, miniMapEnab
     
     if (!fromNode || !toNode) return null
     
-    // Add offsets to center the line on the nodes
+    // Try to get actual connection point positions
+    const fromPoint = getConnectionPointPosition(fromNodeId, true) // output point
+    const toPoint = getConnectionPointPosition(toNodeId, false) // input point
+    
+    // Fallback calculations if connection points aren't available
     const nodeWidth = 240 // Approximate width of node
     const nodeHeight = 140 // Approximate height of node
     
+    const fromX = fromPoint?.x || (fromNode.position.x + nodeWidth)
+    const fromY = fromPoint?.y || (fromNode.position.y + nodeHeight / 2)
+    const toX = toPoint?.x || toNode.position.x
+    const toY = toPoint?.y || (toNode.position.y + nodeHeight / 2)
+    
+    // Calculate control points for the curve
+    const dx = Math.abs(toX - fromX) * 0.5
+    
     return {
-      x1: fromNode.position.x + nodeWidth / 2,
-      y1: fromNode.position.y + nodeHeight / 2,
-      x2: toNode.position.x + nodeWidth / 2,
-      y2: toNode.position.y + nodeHeight / 2
+      x1: fromX,
+      y1: fromY,
+      x2: toX,
+      y2: toY,
+      cp1x: fromX + dx,
+      cp1y: fromY,
+      cp2x: toX - dx,
+      cp2y: toY
     }
   }
 
@@ -544,6 +630,27 @@ export function WorkflowCanvas({ projectId, zoom: initialZoom = 100, miniMapEnab
             >
               <CardHeader className="pb-3 cursor-grab active:cursor-grabbing">
                 <div className="flex items-center justify-between relative">
+                  {/* Input connection point - always visible */}
+                  <div 
+                    id={`input-point-${node.id}`}
+                    className={`absolute w-3 h-3 bg-indigo-500 rounded-full left-0 top-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer ${selectedNodeId === node.id ? 'ring-2 ring-indigo-300 ring-opacity-75' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (connectionMode) handleNodeClick(node.id)
+                    }}
+                  />
+                  
+                  {/* Output connection point - always visible */}
+                  <div 
+                    id={`output-point-${node.id}`}
+                    className={`absolute w-3 h-3 bg-indigo-500 rounded-full right-0 top-1/2 transform translate-x-1/2 -translate-y-1/2 cursor-pointer ${selectedNodeId === node.id ? 'ring-2 ring-indigo-300 ring-opacity-75' : ''}`}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      if (connectionMode) handleNodeClick(node.id)
+                    }}
+                  />
+                  
+                  {/* Top connection point (legacy) */}
                   {connectionMode && (
                     <div 
                       className={`absolute w-3 h-3 bg-indigo-500 rounded-full top-0 left-1/2 transform -translate-x-1/2 -translate-y-1/2 cursor-pointer ${selectedNodeId === node.id ? 'ring-2 ring-indigo-300 ring-opacity-75' : ''}`}
@@ -684,28 +791,38 @@ export function WorkflowCanvas({ projectId, zoom: initialZoom = 100, miniMapEnab
             <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="9" refY="3.5" orient="auto">
               <polygon points="0 0, 10 3.5, 0 7" fill="#6366F1" />
             </marker>
+            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+              <feGaussianBlur stdDeviation="2" result="blur" />
+              <feComposite in="SourceGraphic" in2="blur" operator="over" />
+            </filter>
           </defs>
           {connections.map(connection => {
             const pos = calculateLinePosition(connection.fromNodeId, connection.toNodeId)
             if (!pos) return null
             
+            // Create a bezier curve path
+            const path = `M ${pos.x1} ${pos.y1} C ${pos.cp1x} ${pos.cp1y}, ${pos.cp2x} ${pos.cp2y}, ${pos.x2} ${pos.y2}`;
+            
             return (
               <g key={connection.id}>
-                <line
-                  x1={pos.x1}
-                  y1={pos.y1}
-                  x2={pos.x2}
-                  y2={pos.y2}
+                {/* Glow effect (optional) */}
+                <path
+                  d={path}
+                  stroke="rgba(99, 102, 241, 0.2)"
+                  strokeWidth="6"
+                  fill="none"
+                  filter="url(#glow)"
+                />
+                
+                {/* Main path */}
+                <path
+                  d={path}
                   stroke="#6366F1"
                   strokeWidth="2"
+                  fill="none"
                   strokeDasharray={connectionMode ? "5,5" : ""}
                   markerEnd="url(#arrowhead)"
-                />
-                {/* Arrow head */}
-                <polygon 
-                  points={`${pos.x2},${pos.y2} ${pos.x2-10},${pos.y2-5} ${pos.x2-10},${pos.y2+5}`}
-                  transform={`rotate(${Math.atan2(pos.y2 - pos.y1, pos.x2 - pos.x1) * 180 / Math.PI}, ${pos.x2}, ${pos.y2})`}
-                  fill="#6366F1" 
+                  className="transition-all duration-300"
                 />
               </g>
             )
