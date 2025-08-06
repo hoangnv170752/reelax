@@ -72,13 +72,6 @@ function DashboardContent() {
         })
       }
     }, 50) // Small delay to ensure DOM is ready
-    
-    return () => {
-      clearTimeout(animationTimeout)
-      // Clean up animations when component unmounts
-      gsap.killTweensOf([sidebarRef.current, mainRef.current, ".stat-card", ".project-card"])
-    }
-
     // Sidebar navigation hover effects
     const navItems = document.querySelectorAll(".nav-item")
     navItems.forEach((item) => {
@@ -98,6 +91,11 @@ function DashboardContent() {
         })
       })
     })
+    return () => {
+      clearTimeout(animationTimeout)
+      // Clean up animations when component unmounts
+      gsap.killTweensOf([sidebarRef.current, mainRef.current, ".stat-card", ".project-card"])
+    }
   }, [])
 
   return (

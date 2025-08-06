@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { ProjectCard } from "./project-card"
+import { EditProjectDialog } from "./edit-project-dialog"
 import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
 import { useToast } from "@/components/ui/use-toast"
@@ -24,10 +25,12 @@ interface Project {
 export function ProjectsGrid() {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingProject, setEditingProject] = useState<Project | null>(null)
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
   const { toast } = useToast()
 
   // Import the project context hook
-  const { refreshTrigger } = useProjectContext()
+  const { refreshTrigger, refreshProjects } = useProjectContext()
 
   // Fetch projects from Supabase
   useEffect(() => {
@@ -157,7 +160,18 @@ export function ProjectsGrid() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {formattedProjects.map((project) => (
-            <ProjectCard key={project.id} project={project} />
+            <ProjectCard 
+              key={project.id} 
+              project={project} 
+              onEdit={(project) => {
+                // Find the original project with all data
+                const originalProject = projects.find(p => p.id === project.id)
+                if (originalProject) {
+                  setEditingProject(originalProject)
+                  setIsEditDialogOpen(true)
+                }
+              }} 
+            />
           ))}
         </div>
       )}
@@ -178,6 +192,13 @@ export function ProjectsGrid() {
           <p className="text-gray-600 mb-4">Get started by creating your first project</p>
         </div>
       )}
+
+      {/* Edit Project Dialog */}
+      <EditProjectDialog 
+        project={editingProject} 
+        open={isEditDialogOpen} 
+        onOpenChange={setIsEditDialogOpen} 
+      />
     </div>
   )
 }

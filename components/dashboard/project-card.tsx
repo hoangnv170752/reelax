@@ -2,8 +2,10 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Clock, Youtube, Music } from "lucide-react"
+import { Button } from "@/components/ui/button"
+import { Clock, Youtube, Music, Edit } from "lucide-react"
 import Link from "next/link"
+import { MouseEvent } from "react"
 
 interface Project {
   id: string
@@ -18,9 +20,10 @@ interface Project {
 
 interface ProjectCardProps {
   project: Project
+  onEdit?: (project: Project, e: MouseEvent<HTMLButtonElement>) => void
 }
 
-export function ProjectCard({ project }: ProjectCardProps) {
+export function ProjectCard({ project, onEdit }: ProjectCardProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
       case "Published":
@@ -34,9 +37,17 @@ export function ProjectCard({ project }: ProjectCardProps) {
     }
   }
 
+  const handleEdit = (e: MouseEvent<HTMLButtonElement>) => {
+    e.preventDefault()
+    e.stopPropagation()
+    if (onEdit) {
+      onEdit(project, e)
+    }
+  }
+
   return (
     <Link href={`/project/${project.id}`}>
-      <Card className="project-card bg-white border-gray-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer group">
+      <Card className="project-card bg-white border-gray-200 shadow-sm hover:border-blue-300 hover:shadow-md transition-all duration-200 cursor-pointer group relative">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center space-x-2">
@@ -47,8 +58,19 @@ export function ProjectCard({ project }: ProjectCardProps) {
               )}
               <Badge className={`text-xs ${getStatusColor(project.status)}`}>{project.status}</Badge>
             </div>
-            <div className="text-right text-sm text-gray-600">
-              <p className="font-medium">{project.views} views</p>
+            <div className="flex items-center space-x-2">
+              <div className="text-right text-sm text-gray-600">
+                <p className="font-medium">{project.views} views</p>
+              </div>
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity" 
+                onClick={handleEdit}
+                title="Edit project"
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
             </div>
           </div>
           <CardTitle className="text-gray-900 group-hover:text-blue-600 transition-colors">{project.title}</CardTitle>
