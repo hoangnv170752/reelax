@@ -182,8 +182,8 @@ export function ProjectWorkspace({ projectId, projectName: initialProjectName }:
           </TabsContent>
 
           <TabsContent value="upload" className="flex-1 mt-4">
-            <ScrollArea className="h-full px-4">
-              <div className="pb-4">
+            <ScrollArea className="h-full px-2">
+              <div className="pb-0">
                 <VideoUpload 
                   onVideoUploaded={handleVideoUploaded} 
                   projectId={projectId} 

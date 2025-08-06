@@ -2,8 +2,10 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
+import { supabase } from "@/lib/supabase"
+import { useToast } from "@/components/ui/use-toast"
 import {
   Dialog,
   DialogContent,
@@ -43,9 +45,11 @@ interface SettingsModalProps {
 
 export function SettingsModal({ isOpen, onOpenChange }: SettingsModalProps) {
   const { user, updateUserProfile } = useAuth()
+  const { toast } = useToast()
   const [isSaving, setIsSaving] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
   const [internalOpen, setInternalOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   
   // Use either the controlled state from props or internal state
   const dialogOpen = isOpen !== undefined ? isOpen : internalOpen
@@ -58,6 +62,8 @@ export function SettingsModal({ isOpen, onOpenChange }: SettingsModalProps) {
     firstName: user?.firstName || "",
     lastName: user?.lastName || "",
     email: user?.email || "",
+    bio: "",
+    avatarUrl: user?.imageUrl || "",
 
     // Notifications
     emailNotifications: true,
@@ -73,6 +79,65 @@ export function SettingsModal({ isOpen, onOpenChange }: SettingsModalProps) {
     profileVisibility: "public",
     analyticsSharing: true,
   })
+
+  // Fetch user settings when dialog opens
+  useEffect(() => {
+    if (dialogOpen && user) {
+      const fetchUserSettings = async () => {
+        setIsLoading(true);
+        try {
+          // Fetch profile data
+          const { data: profileData, error: profileError } = await supabase
+            .from('profiles')
+            .select('first_name, last_name, display_name, avatar_url, bio')
+            .eq('id', user.id)
+            .single();
+
+          if (profileError) throw profileError;
+
+          // Fetch user settings
+          const { data: settingsData, error: settingsError } = await supabase
+            .from('user_settings')
+            .select('theme, notifications_enabled, email_notifications_enabled, language')
+            .eq('user_id', user.id)
+            .single();
+
+          if (settingsError && settingsError.code !== 'PGRST116') { // PGRST116 is "no rows returned" error
+            throw settingsError;
+          }
+
+          // Update settings state with fetched data
+          setSettings({
+            ...settings,
+            firstName: profileData?.first_name || user.firstName,
+            lastName: profileData?.last_name || user.lastName,
+            bio: profileData?.bio || '',
+            avatarUrl: profileData?.avatar_url || user.imageUrl,
+            
+            // Map from user_settings table
+            theme: settingsData?.theme || 'system',
+            language: settingsData?.language || 'en',
+            emailNotifications: settingsData?.email_notifications_enabled !== false,
+            pushNotifications: settingsData?.notifications_enabled !== false,
+            
+            // Keep other settings as is
+            email: user.email,
+            projectUpdates: settings.projectUpdates,
+            marketingEmails: settings.marketingEmails,
+            profileVisibility: settings.profileVisibility,
+            analyticsSharing: settings.analyticsSharing,
+          });
+        } catch (error) {
+          console.error('Error fetching user settings:', error);
+          setSaveError('Failed to load settings. Please try again.');
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      fetchUserSettings();
+    }
+  }, [dialogOpen, user]);
 
   const tabs = [
     { id: "profile", label: "Profile", icon: User },
@@ -90,18 +155,79 @@ export function SettingsModal({ isOpen, onOpenChange }: SettingsModalProps) {
       setIsSaving(true)
       setSaveError(null)
       
-      // Update profile information
-      if (user) {
-        await updateUserProfile(settings.firstName, settings.lastName)
+      if (!user) {
+        throw new Error('User not authenticated')
+      }
+
+      // 1. Update profile information in auth metadata and profiles table
+      await updateUserProfile(settings.firstName, settings.lastName)
+      
+      // 2. Update additional profile fields in profiles table
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          bio: settings.bio,
+          avatar_url: settings.avatarUrl,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id)
+
+      if (profileError) {
+        throw profileError
+      }
+
+      // 3. Check if user_settings record exists
+      const { data: existingSettings } = await supabase
+        .from('user_settings')
+        .select('user_id')
+        .eq('user_id', user.id)
+        .single()
+
+      // 4. Update or insert user_settings
+      const settingsData = {
+        theme: settings.theme,
+        notifications_enabled: settings.pushNotifications,
+        email_notifications_enabled: settings.emailNotifications,
+        language: settings.language,
+        updated_at: new Date().toISOString()
+      }
+
+      let settingsError
+
+      if (existingSettings) {
+        // Update existing settings
+        const { error } = await supabase
+          .from('user_settings')
+          .update(settingsData)
+          .eq('user_id', user.id)
+        
+        settingsError = error
+      } else {
+        // Insert new settings
+        const { error } = await supabase
+          .from('user_settings')
+          .insert({
+            ...settingsData,
+            user_id: user.id
+          })
+        
+        settingsError = error
+      }
+
+      if (settingsError) {
+        throw settingsError
       }
       
-      // Here you would save other settings to your backend
-      console.log("Saving settings:", settings)
+      // Success message
+      toast({
+        title: "Settings saved",
+        description: "Your settings have been updated successfully",
+      })
       
       // Close the dialog
       setDialogOpen(false)
     } catch (error) {
-      console.error('Error saving profile:', error)
+      console.error('Error saving settings:', error)
       setSaveError(error instanceof Error ? error.message : 'An unknown error occurred')
     } finally {
       setIsSaving(false)

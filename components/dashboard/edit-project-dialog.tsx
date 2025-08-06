@@ -7,8 +7,9 @@ import * as z from "zod"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/components/ui/use-toast"
 import { useProjectContext } from "./project-context"
-import { Trash2 } from "lucide-react"
+import { Trash2, X, Plus } from "lucide-react"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog"
+import { Badge } from "@/components/ui/badge"
 
 import {
   Dialog,
@@ -90,6 +91,7 @@ export function EditProjectDialog({ project, open, onOpenChange }: EditProjectDi
         description: project.description,
         platform: project.platform as any,
         status: project.status as any,
+        tags: project.tags || [],
       })
     }
   }, [project, open, form])
@@ -101,7 +103,8 @@ export function EditProjectDialog({ project, open, onOpenChange }: EditProjectDi
     try {
       setIsSubmitting(true)
 
-      const { error } = await supabase
+      // Update project details
+      const { error: projectError } = await supabase
         .from('projects')
         .update({
           title: values.title,
@@ -112,8 +115,68 @@ export function EditProjectDialog({ project, open, onOpenChange }: EditProjectDi
         })
         .eq('id', project.id)
 
-      if (error) {
-        throw error
+      if (projectError) {
+        throw projectError
+      }
+
+      // Handle tag updates
+      if (values.tags && values.tags.length > 0) {
+        // First, delete existing tag relations for this project
+        const { error: deleteError } = await supabase
+          .from('project_tag_relations')
+          .delete()
+          .eq('project_id', project.id)
+
+        if (deleteError) {
+          throw deleteError
+        }
+
+        // For each tag, check if it exists, if not create it, then create the relation
+        for (const tagName of values.tags) {
+          // Check if tag exists
+          let { data: existingTags } = await supabase
+            .from('project_tags')
+            .select('id')
+            .eq('name', tagName)
+            .limit(1)
+
+          let tagId
+
+          if (!existingTags || existingTags.length === 0) {
+            // Create new tag
+            const { data: newTag, error: tagError } = await supabase
+              .from('project_tags')
+              .insert({ name: tagName })
+              .select('id')
+              .single()
+
+            if (tagError) {
+              throw tagError
+            }
+
+            tagId = newTag.id
+          } else {
+            tagId = existingTags[0].id
+          }
+
+          // Create relation between project and tag
+          const { error: relationError } = await supabase
+            .from('project_tag_relations')
+            .insert({
+              project_id: project.id,
+              tag_id: tagId
+            })
+
+          if (relationError) {
+            throw relationError
+          }
+        }
+      } else {
+        // If no tags, delete all tag relations for this project
+        await supabase
+          .from('project_tag_relations')
+          .delete()
+          .eq('project_id', project.id)
       }
 
       toast({
@@ -283,6 +346,71 @@ export function EditProjectDialog({ project, open, onOpenChange }: EditProjectDi
                 )}
               />
             </div>
+
+            <FormField
+              control={form.control}
+              name="tags"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Tags</FormLabel>
+                  <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                      {(field.value || []).map((tag, index) => (
+                        <Badge key={index} variant="secondary" className="flex items-center gap-1">
+                          {tag}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const newTags = [...(field.value || [])];
+                              newTags.splice(index, 1);
+                              field.onChange(newTags);
+                            }}
+                            className="ml-1 rounded-full hover:bg-muted p-0.5"
+                          >
+                            <X className="h-3 w-3" />
+                          </button>
+                        </Badge>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Input
+                        id="new-tag"
+                        placeholder="Add a tag"
+                        className="flex-1"
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            const input = e.currentTarget;
+                            const value = input.value.trim();
+                            if (value && !field.value?.includes(value)) {
+                              field.onChange([...field.value || [], value]);
+                              input.value = '';
+                            }
+                          }
+                        }}
+                      />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          const input = document.getElementById('new-tag') as HTMLInputElement;
+                          const value = input.value.trim();
+                          if (value && !field.value?.includes(value)) {
+                            field.onChange([...field.value || [], value]);
+                            input.value = '';
+                          }
+                        }}
+                      >
+                        <Plus className="h-4 w-4" />
+                        Add
+                      </Button>
+                    </div>
+                  </div>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <DialogFooter className="flex justify-between w-full">
               <Button 
